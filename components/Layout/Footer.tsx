@@ -12,7 +12,7 @@ const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto px-6">
         <div className="w-full flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-3 justify-center md:justify-start">
-                <div className="w-8 h-8 opacity-80 hover:opacity-100 transition-opacity duration-300">
+                <div className="w-12 h-12 opacity-80 hover:opacity-100 transition-opacity duration-300">
                     <svg 
                         version="1.2" 
                         xmlns="http://www.w3.org/2000/svg" 

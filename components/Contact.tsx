@@ -119,8 +119,8 @@ const Contact: React.FC = () => {
                     className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer group z-20 overflow-hidden" 
                     onClick={() => setIsMapLoaded(true)}
                 >
-                    {/* Background Image: Facade */}
-                    <div className="absolute inset-0 bg-[url('https://i.imgur.com/0DVcfV4.jpeg')] bg-cover bg-center transition-transform duration-[2000ms] ease-out group-hover:scale-105"></div>
+                    {/* Background Image: Facade - UPDATED IMAGE */}
+                    <div className="absolute inset-0 bg-[url('https://i.imgur.com/fw1q1bk.jpeg')] bg-cover bg-center transition-transform duration-[2000ms] ease-out group-hover:scale-105"></div>
                     
                     {/* Dark Overlay for contrast */}
                     <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-500"></div>
@@ -135,8 +135,8 @@ const Contact: React.FC = () => {
                              <MapPin className="w-8 h-8 text-white group-hover:text-white transition-colors" />
                         </div>
                         
-                        <span className="text-sm uppercase tracking-[0.2em] text-white font-medium drop-shadow-md border-b border-transparent group-hover:border-white pb-1 transition-all">
-                            Ver Ubicación
+                        <span className="text-sm uppercase tracking-[0.2em] text-white font-medium drop-shadow-md border-b border-transparent group-hover:border-white pb-1 transition-all text-center px-4">
+                            Ver ubicación en el mapa
                         </span>
                     </motion.div>
                 </div>
