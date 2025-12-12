@@ -8,7 +8,7 @@ const InstagramFeed: React.FC = () => {
   return (
     <section className="py-24 bg-base-white relative overflow-hidden">
         {/* Decorative background text */}
-        <div className="absolute top-10 right-0 w-full text-right pointer-events-none opacity-[0.02]">
+        <div className="absolute top-10 right-0 w-full text-right pointer-events-none opacity-[0.02]" aria-hidden="true">
             <span className="text-[10rem] leading-none font-serif text-charcoal">SOCIAL</span>
         </div>
 
@@ -40,11 +40,14 @@ const InstagramFeed: React.FC = () => {
                     >
                         {!isVideoLoaded ? (
                             <>
-                                {/* Imagen de portada solicitada */}
+                                {/* Imagen de portada solicitada - Optimizada */}
                                 <img 
-                                    src="https://i.imgur.com/BZSeRxj.png" 
+                                    src="https://i.imgur.com/BZSeRxj.png"
+                                    srcSet="https://i.imgur.com/BZSeRxjl.png 640w, https://i.imgur.com/BZSeRxjh.png 1024w, https://i.imgur.com/BZSeRxj.png 1920w"
+                                    sizes="(max-width: 640px) 100vw, 400px" 
                                     alt="Testimonio Paciente Rostro Dorado" 
                                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                    loading="lazy"
                                 />
                                 
                                 {/* Overlay Gradiente para legibilidad */}

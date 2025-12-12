@@ -103,7 +103,7 @@ const Contact: React.FC = () => {
 
   const inputClasses = (fieldName: string) => `
     w-full bg-transparent border-b py-4 text-base md:text-lg text-white font-serif
-    focus:outline-none transition-all duration-300 placeholder-white/20
+    focus:outline-none transition-all duration-300 placeholder-white/40
     ${focusedField === fieldName || formData[fieldName as keyof typeof formData] ? 'border-gold' : 'border-white/10'}
   `;
 
@@ -186,7 +186,7 @@ const Contact: React.FC = () => {
                     <div className="group">
                         <label 
                             htmlFor="name"
-                            className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'name' ? 'text-gold' : 'text-white/40'}`}
+                            className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'name' ? 'text-gold' : 'text-white/70'}`}
                         >
                             Nombre Completo *
                         </label>
@@ -209,7 +209,7 @@ const Contact: React.FC = () => {
                         <div>
                             <label 
                                 htmlFor="phone"
-                                className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'phone' ? 'text-gold' : 'text-white/40'}`}
+                                className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'phone' ? 'text-gold' : 'text-white/70'}`}
                             >
                                 Celular / WhatsApp *
                             </label>
@@ -231,7 +231,7 @@ const Contact: React.FC = () => {
                         <div>
                             <label 
                                 htmlFor="email"
-                                className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'email' ? 'text-gold' : 'text-white/40'}`}
+                                className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'email' ? 'text-gold' : 'text-white/70'}`}
                             >
                                 Correo Electrónico *
                             </label>
@@ -254,7 +254,7 @@ const Contact: React.FC = () => {
                     <div className="relative">
                         <label 
                             htmlFor="treatment"
-                            className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'treatment' ? 'text-gold' : 'text-white/40'}`}
+                            className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'treatment' ? 'text-gold' : 'text-white/70'}`}
                         >
                             Tratamiento de Interés *
                         </label>
@@ -269,7 +269,7 @@ const Contact: React.FC = () => {
                                 onBlur={() => setFocusedField(null)}
                                 className={`${inputClasses('treatment')} appearance-none cursor-pointer [&>option]:bg-[#1a1a1a] [&>option]:text-white [&>option]:py-2`}
                             >
-                                <option value="" disabled className="text-white/20">Selecciona una opción...</option>
+                                <option value="" disabled className="text-white/40">Selecciona una opción...</option>
                                 {TREATMENTS.map((t, i) => (
                                     <option key={i} value={t}>{t}</option>
                                 ))}
@@ -282,7 +282,7 @@ const Contact: React.FC = () => {
                     <div>
                         <label 
                             htmlFor="details"
-                            className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'details' ? 'text-gold' : 'text-white/40'}`}
+                            className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'details' ? 'text-gold' : 'text-white/70'}`}
                         >
                             Cuéntanos más (Opcional)
                         </label>
@@ -313,7 +313,7 @@ const Contact: React.FC = () => {
                             />
                             <Check size={14} className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-charcoal opacity-0 peer-checked:opacity-100 transition-opacity" />
                         </div>
-                        <label htmlFor="privacy" className="text-xs font-light text-white/60 cursor-pointer select-none group-hover:text-white/80 transition-colors leading-relaxed">
+                        <label htmlFor="privacy" className="text-xs font-light text-white/70 cursor-pointer select-none group-hover:text-white/80 transition-colors leading-relaxed">
                             He leído y acepto los <button type="button" onClick={(e) => openLegal(e, 'terms')} className="p-1 -m-1 underline decoration-white/30 hover:decoration-gold hover:text-gold transition-colors font-medium inline-block">Términos y Condiciones</button> y autorizo el <button type="button" onClick={(e) => openLegal(e, 'privacy')} className="p-1 -m-1 underline decoration-white/30 hover:decoration-gold hover:text-gold transition-colors font-medium inline-block">Tratamiento de Datos Personales</button>.
                         </label>
                     </div>

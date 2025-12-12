@@ -35,7 +35,9 @@ const Hero: React.FC = () => {
         {/* Darker overlay for better text contrast as requested */}
         <div className="absolute inset-0 bg-black/40 z-10"></div> 
         <img 
-          src="https://i.imgur.com/8IdyQKw.png" 
+          src="https://i.imgur.com/8IdyQKw.png"
+          srcSet="https://i.imgur.com/8IdyQKwl.png 640w, https://i.imgur.com/8IdyQKwh.png 1024w, https://i.imgur.com/8IdyQKw.png 1920w"
+          sizes="100vw" 
           alt="Dra. Isaura Dorado - Rostro Dorado Clinic" 
           className="w-full h-full object-cover object-center scale-105"
           // LCP Optimization: fetchPriority alta
