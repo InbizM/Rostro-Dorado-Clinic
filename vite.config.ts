@@ -3,14 +3,15 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // Definimos la URL base de producción como solicitaste para asegurar que los assets se expongan correctamente
+  // URL base para producción
   base: 'https://rostro-dorado-clinic-avance.onrender.com/',
   server: {
-    host: true, // Permite que el servidor sea accesible externamente (0.0.0.0)
+    host: true, 
     port: 10000,
   },
   preview: {
     host: true,
     port: 10000,
+    allowedHosts: ['rostro-dorado-clinic-avance.onrender.com']
   }
 });
