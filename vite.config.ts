@@ -3,15 +3,14 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // URL base para producción
-  base: 'https://rostro-dorado-clinic-avance.onrender.com/',
+  // Cambiamos 'base' a '/' para que funcione en cualquier dominio que Easypanel te asigne
+  base: '/',
   server: {
     host: true, 
-    port: 10000,
+    port: 3000,
   },
   preview: {
     host: true,
-    port: 10000,
-    allowedHosts: ['rostro-dorado-clinic-avance.onrender.com']
+    port: 3000
   }
 });
