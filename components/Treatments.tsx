@@ -187,6 +187,9 @@ const Treatments: React.FC = () => {
                         src={treatments[activeTreatment].image} 
                         alt={treatments[activeTreatment].title} 
                         className="w-full h-full object-cover grayscale opacity-70"
+                        width="800"
+                        height="1000"
+                        loading="lazy"
                     />
                 </motion.div>
             </AnimatePresence>

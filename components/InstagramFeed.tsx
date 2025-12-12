@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Instagram, ExternalLink, ArrowRight } from 'lucide-react';
+import { Instagram, ExternalLink, ArrowRight, Play } from 'lucide-react';
 
 const InstagramFeed: React.FC = () => {
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+
   return (
     <section className="py-24 bg-base-white relative overflow-hidden">
         {/* Decorative background text */}
@@ -23,7 +25,7 @@ const InstagramFeed: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                 
-                {/* Featured Video Embed (Left Side) */}
+                {/* Featured Video Embed (Left Side) - Fachada implementada */}
                 <motion.div 
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
@@ -31,15 +33,32 @@ const InstagramFeed: React.FC = () => {
                     transition={{ duration: 0.8 }}
                     className="w-full flex justify-center lg:justify-end"
                 >
-                    <div className="w-full max-w-[400px] overflow-hidden rounded-xl shadow-2xl border border-charcoal/5 bg-white relative">
-                        <iframe 
-                            src="https://www.instagram.com/p/DHG0tQXuEew/embed" 
-                            className="w-full aspect-[4/5]"
-                            style={{ minHeight: '600px', border: 'none', overflow: 'hidden' }}
-                            scrolling="no"
-                            title="Rostro Dorado Clinic Instagram Video"
-                            loading="lazy"
-                        ></iframe>
+                    <div 
+                        className="w-full max-w-[400px] overflow-hidden rounded-xl shadow-2xl border border-charcoal/5 bg-white relative aspect-[4/5] flex items-center justify-center cursor-pointer group"
+                        style={{ minHeight: '600px' }}
+                        onClick={() => setIsVideoLoaded(true)}
+                    >
+                        {!isVideoLoaded ? (
+                            <>
+                                <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+                                    <Instagram className="w-20 h-20 text-gray-300" />
+                                </div>
+                                <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors"></div>
+                                <div className="absolute z-10 w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                    <Play className="ml-1 w-6 h-6 text-charcoal fill-charcoal" />
+                                </div>
+                                <span className="absolute bottom-10 font-sans text-xs uppercase tracking-widest text-charcoal/60">Cargar Reel</span>
+                            </>
+                        ) : (
+                            <iframe 
+                                src="https://www.instagram.com/p/DHG0tQXuEew/embed" 
+                                className="w-full h-full"
+                                style={{ border: 'none', overflow: 'hidden' }}
+                                scrolling="no"
+                                title="Rostro Dorado Clinic Instagram Video"
+                                loading="lazy"
+                            ></iframe>
+                        )}
                     </div>
                 </motion.div>
 

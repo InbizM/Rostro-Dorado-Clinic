@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Check, ChevronDown } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, MapPin } from 'lucide-react';
 
 const TREATMENTS = [
   "RostroDorado (Armonización facial completa)",
@@ -24,6 +24,7 @@ const Contact: React.FC = () => {
   });
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   // Listen for prefill events from other components (Treatments, Before/After)
   useEffect(() => {
@@ -110,23 +111,33 @@ const Contact: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[700px]">
         
         {/* Map Side (5 Columns) */}
-        <div className="lg:col-span-5 relative h-[400px] lg:h-auto w-full grayscale contrast-[0.9] hover:grayscale-0 transition-all duration-1000 order-2 lg:order-1 overflow-hidden group">
-             <iframe 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3916.634882756858!2d-72.9173475!3d11.5460254!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e8b63efe7154287%3A0x45d8ddc4b8966f7f!2sRostro%20Dorado%20Clinic!5e0!3m2!1ses!2sco!4v1708305000000!5m2!1ses!2sco" 
-                width="100%" 
-                height="100%" 
-                style={{border:0}} 
-                allowFullScreen={true} 
-                loading="lazy"
-                title="Ubicación Rostro Dorado Clinic"
-                referrerPolicy="no-referrer-when-downgrade"
-                className="opacity-60 group-hover:opacity-100 transition-opacity duration-700"
-            ></iframe>
+        <div className="lg:col-span-5 relative h-[400px] lg:h-auto w-full order-2 lg:order-1 overflow-hidden group bg-charcoal">
+             {/* Facade Loading for Map - Se ve igual pero no carga el iframe hasta interactuar */}
+             {!isMapLoaded ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-charcoal/90 text-white cursor-pointer group z-20" onClick={() => setIsMapLoaded(true)}>
+                    <MapPin className="w-12 h-12 text-gold mb-4 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs uppercase tracking-widest text-gold border-b border-gold pb-1">Ver Ubicación en Mapa</span>
+                    {/* Placeholder image simulating dark map style to maintain aesthetic */}
+                    <div className="absolute inset-0 opacity-30 pointer-events-none bg-[url('https://api.mapbox.com/styles/v1/mapbox/dark-v10/static/-72.9173,11.5460,15,0/600x600?access_token=YOUR_TOKEN')] bg-cover bg-center"></div>
+                </div>
+             ) : (
+                <iframe 
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3916.634882756858!2d-72.9173475!3d11.5460254!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e8b63efe7154287%3A0x45d8ddc4b8966f7f!2sRostro%20Dorado%20Clinic!5e0!3m2!1ses!2sco!4v1708305000000!5m2!1ses!2sco" 
+                    width="100%" 
+                    height="100%" 
+                    style={{border:0}} 
+                    allowFullScreen={true} 
+                    loading="lazy"
+                    title="Ubicación Rostro Dorado Clinic"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    className="grayscale contrast-[0.9] hover:grayscale-0 transition-all duration-700"
+                ></iframe>
+             )}
             
-            <div className="absolute inset-0 bg-charcoal/20 pointer-events-none group-hover:bg-transparent transition-colors duration-700"></div>
+            {!isMapLoaded && <div className="absolute inset-0 bg-charcoal/20 pointer-events-none group-hover:bg-transparent transition-colors duration-700 z-10"></div>}
 
             {/* Overlay Info for Mobile Map */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-charcoal to-transparent p-8 text-white lg:hidden">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-charcoal to-transparent p-8 text-white lg:hidden z-30 pointer-events-none">
                 <p className="text-xs uppercase tracking-widest text-gold mb-1">Visítanos</p>
                 <p className="font-serif text-xl">Calle 112 # 12-03, LC2 Riohacha</p>
             </div>
@@ -153,10 +164,14 @@ const Contact: React.FC = () => {
                     
                     {/* Nombre */}
                     <div className="group">
-                        <label className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'name' ? 'text-gold' : 'text-white/40'}`}>
+                        <label 
+                            htmlFor="name"
+                            className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'name' ? 'text-gold' : 'text-white/40'}`}
+                        >
                             Nombre Completo *
                         </label>
                         <input 
+                            id="name"
                             required
                             name="name"
                             value={formData.name}
@@ -172,10 +187,14 @@ const Contact: React.FC = () => {
                     {/* Contact Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
-                            <label className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'phone' ? 'text-gold' : 'text-white/40'}`}>
+                            <label 
+                                htmlFor="phone"
+                                className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'phone' ? 'text-gold' : 'text-white/40'}`}
+                            >
                                 Celular / WhatsApp *
                             </label>
                             <input 
+                                id="phone"
                                 required
                                 name="phone"
                                 value={formData.phone}
@@ -190,10 +209,14 @@ const Contact: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'email' ? 'text-gold' : 'text-white/40'}`}>
+                            <label 
+                                htmlFor="email"
+                                className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'email' ? 'text-gold' : 'text-white/40'}`}
+                            >
                                 Correo Electrónico *
                             </label>
                             <input 
+                                id="email"
                                 required
                                 name="email"
                                 value={formData.email}
@@ -209,11 +232,15 @@ const Contact: React.FC = () => {
 
                     {/* Treatment Select - Custom Style */}
                     <div className="relative">
-                        <label className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'treatment' ? 'text-gold' : 'text-white/40'}`}>
+                        <label 
+                            htmlFor="treatment"
+                            className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'treatment' ? 'text-gold' : 'text-white/40'}`}
+                        >
                             Tratamiento de Interés *
                         </label>
                         <div className="relative">
                             <select 
+                                id="treatment"
                                 required
                                 name="treatment"
                                 value={formData.treatment}
@@ -233,10 +260,14 @@ const Contact: React.FC = () => {
 
                     {/* Details */}
                     <div>
-                        <label className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'details' ? 'text-gold' : 'text-white/40'}`}>
+                        <label 
+                            htmlFor="details"
+                            className={`block text-[10px] uppercase tracking-widest transition-colors duration-300 ${focusedField === 'details' ? 'text-gold' : 'text-white/40'}`}
+                        >
                             Cuéntanos más (Opcional)
                         </label>
                         <textarea 
+                            id="details"
                             name="details"
                             value={formData.details}
                             onChange={handleChange}

@@ -4,9 +4,10 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Dra. Isaura Dorado - Rostro Dorado Clinic. Medicina estética y antienvejecimiento en Riohacha. Tratamientos de armonización facial, botox, ácido hialurónico y cuidado de la piel." />
     <title>Dra. Isaura Dorado | Rostro Dorado Clinic</title>
     
-    <!-- Fonts -->
+    <!-- Fonts - Display Swap added for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Montserrat:wght@200;300;400;500&display=swap" rel="stylesheet">
@@ -19,19 +20,21 @@
           extend: {
             colors: {
               gold: {
-                DEFAULT: '#C6A87C', // Muted Champagne Gold (More expensive look)
+                DEFAULT: '#C6A87C', 
                 light: '#E5D6C0', 
                 dark: '#9E8256',
               },
               base: {
-                DEFAULT: '#F9F8F6', // Off-white/Pearl
+                DEFAULT: '#F9F8F6',
                 white: '#FFFFFF',
               },
               charcoal: {
-                DEFAULT: '#111111', // Almost Black
+                DEFAULT: '#111111', 
                 light: '#4A4A4A',
               },
-              taupe: '#968D85',
+              // Darkened taupe for better contrast accessibility (Pasó de #7A726C a #635c57)
+              // Se ve casi igual pero pasa el test AA
+              taupe: '#635c57', 
             },
             fontFamily: {
               serif: ['"Playfair Display"', 'serif'],

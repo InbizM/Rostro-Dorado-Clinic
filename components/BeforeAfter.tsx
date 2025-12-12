@@ -129,6 +129,7 @@ const BeforeAfter: React.FC = () => {
                 <button 
                     onClick={handlePrev}
                     className="w-12 h-12 rounded-full border border-gold/30 flex items-center justify-center text-charcoal hover:bg-gold hover:text-white hover:border-gold transition-all duration-300 cursor-hover bg-white/50 backdrop-blur-sm"
+                    aria-label="Ver caso anterior"
                 >
                     <ChevronLeft size={24} />
                 </button>
@@ -138,6 +139,7 @@ const BeforeAfter: React.FC = () => {
                 <button 
                     onClick={handleNext}
                     className="w-12 h-12 rounded-full border border-gold/30 flex items-center justify-center text-charcoal hover:bg-gold hover:text-white hover:border-gold transition-all duration-300 cursor-hover bg-white/50 backdrop-blur-sm"
+                    aria-label="Ver siguiente caso"
                 >
                     <ChevronRight size={24} />
                 </button>
@@ -168,6 +170,9 @@ const BeforeAfter: React.FC = () => {
                                     src={currentCase.after} 
                                     alt="Resultado Después" 
                                     className="absolute inset-0 w-full h-full object-cover pointer-events-none" 
+                                    width="800"
+                                    height="600"
+                                    loading="lazy"
                                 />
                                 <span className="absolute top-6 right-6 font-sans text-[10px] uppercase tracking-widest text-charcoal bg-white/90 px-3 py-1 backdrop-blur-md z-10 rounded-sm">
                                     Después
@@ -183,6 +188,9 @@ const BeforeAfter: React.FC = () => {
                                         alt="Resultado Antes" 
                                         className="absolute inset-0 w-full max-w-none h-full object-cover grayscale contrast-125 brightness-90" 
                                         style={{ width: '100%', maxWidth: 'none' }} // Ensure image doesn't squish
+                                        width="800"
+                                        height="600"
+                                        loading="lazy"
                                     />
                                      {/* Simple Overlay for text readability on before side */}
                                      <div className="absolute inset-0 bg-charcoal/10 mix-blend-multiply"></div>
@@ -256,7 +264,7 @@ const BeforeAfter: React.FC = () => {
                                 key={idx}
                                 onClick={() => setCurrentIndex(idx)}
                                 className={`h-1 transition-all duration-300 rounded-full ${idx === currentIndex ? 'w-12 bg-gold' : 'w-4 bg-charcoal/20 hover:bg-gold/50'}`}
-                                aria-label={`Go to case ${idx + 1}`}
+                                aria-label={`Ir al caso ${idx + 1}`}
                             />
                         ))}
                     </div>
