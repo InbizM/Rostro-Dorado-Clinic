@@ -13,10 +13,18 @@ const Footer: React.FC = () => {
         <p>&copy; {new Date().getFullYear()} Rostro Dorado Clinic. Todos los derechos reservados.</p>
         
         <div className="flex gap-4 md:gap-8">
-            <button onClick={(e) => openLegal(e, 'terms')} className="hover:text-gold transition-colors cursor-hover">
+            <button 
+                onClick={(e) => openLegal(e, 'terms')} 
+                className="p-2 hover:text-gold transition-colors cursor-hover inline-block"
+                aria-label="Ver términos y condiciones"
+            >
                 Términos y Condiciones
             </button>
-            <button onClick={(e) => openLegal(e, 'privacy')} className="hover:text-gold transition-colors cursor-hover">
+            <button 
+                onClick={(e) => openLegal(e, 'privacy')} 
+                className="p-2 hover:text-gold transition-colors cursor-hover inline-block"
+                aria-label="Ver política de privacidad"
+            >
                 Política de Privacidad
             </button>
         </div>

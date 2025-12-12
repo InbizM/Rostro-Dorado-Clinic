@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Check, ChevronDown, MapPin } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const TREATMENTS = [
   "RostroDorado (Armonización facial completa)",
@@ -114,11 +115,30 @@ const Contact: React.FC = () => {
         <div className="lg:col-span-5 relative h-[400px] lg:h-auto w-full order-2 lg:order-1 overflow-hidden group bg-charcoal">
              {/* Facade Loading for Map - Se ve igual pero no carga el iframe hasta interactuar */}
              {!isMapLoaded ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-charcoal/90 text-white cursor-pointer group z-20" onClick={() => setIsMapLoaded(true)}>
-                    <MapPin className="w-12 h-12 text-gold mb-4 group-hover:scale-110 transition-transform" />
-                    <span className="text-xs uppercase tracking-widest text-gold border-b border-gold pb-1">Ver Ubicación en Mapa</span>
-                    {/* Placeholder image simulating dark map style to maintain aesthetic */}
-                    <div className="absolute inset-0 opacity-30 pointer-events-none bg-[url('https://api.mapbox.com/styles/v1/mapbox/dark-v10/static/-72.9173,11.5460,15,0/600x600?access_token=YOUR_TOKEN')] bg-cover bg-center"></div>
+                <div 
+                    className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer group z-20 overflow-hidden" 
+                    onClick={() => setIsMapLoaded(true)}
+                >
+                    {/* Background Image: Facade */}
+                    <div className="absolute inset-0 bg-[url('https://i.imgur.com/0DVcfV4.jpeg')] bg-cover bg-center transition-transform duration-[2000ms] ease-out group-hover:scale-105"></div>
+                    
+                    {/* Dark Overlay for contrast */}
+                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-500"></div>
+                    
+                    {/* Elegant Button Container */}
+                    <motion.div 
+                        className="relative z-10 flex flex-col items-center"
+                        whileHover={{ scale: 1.05 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/30 flex items-center justify-center mb-4 shadow-xl group-hover:bg-gold/90 group-hover:border-gold transition-all duration-300">
+                             <MapPin className="w-8 h-8 text-white group-hover:text-white transition-colors" />
+                        </div>
+                        
+                        <span className="text-sm uppercase tracking-[0.2em] text-white font-medium drop-shadow-md border-b border-transparent group-hover:border-white pb-1 transition-all">
+                            Ver Ubicación
+                        </span>
+                    </motion.div>
                 </div>
              ) : (
                 <iframe 
@@ -293,8 +313,8 @@ const Contact: React.FC = () => {
                             />
                             <Check size={14} className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-charcoal opacity-0 peer-checked:opacity-100 transition-opacity" />
                         </div>
-                        <label htmlFor="privacy" className="text-xs font-light text-white/60 cursor-pointer select-none group-hover:text-white/80 transition-colors">
-                            He leído y acepto los <button type="button" onClick={(e) => openLegal(e, 'terms')} className="underline decoration-white/30 hover:decoration-gold hover:text-gold transition-colors font-medium">Términos y Condiciones</button> y autorizo el <button type="button" onClick={(e) => openLegal(e, 'privacy')} className="underline decoration-white/30 hover:decoration-gold hover:text-gold transition-colors font-medium">Tratamiento de Datos Personales</button>.
+                        <label htmlFor="privacy" className="text-xs font-light text-white/60 cursor-pointer select-none group-hover:text-white/80 transition-colors leading-relaxed">
+                            He leído y acepto los <button type="button" onClick={(e) => openLegal(e, 'terms')} className="p-1 -m-1 underline decoration-white/30 hover:decoration-gold hover:text-gold transition-colors font-medium inline-block">Términos y Condiciones</button> y autorizo el <button type="button" onClick={(e) => openLegal(e, 'privacy')} className="p-1 -m-1 underline decoration-white/30 hover:decoration-gold hover:text-gold transition-colors font-medium inline-block">Tratamiento de Datos Personales</button>.
                         </label>
                     </div>
 

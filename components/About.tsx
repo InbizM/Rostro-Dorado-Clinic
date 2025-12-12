@@ -122,7 +122,7 @@ const About: React.FC = () => {
                     transition={{ delay: 0.3, duration: 0.8 }}
                     className="bg-base-white p-8 md:p-12 shadow-sm border-l-2 border-gold/30"
                 >
-                    <span className="font-sans text-gold text-xs uppercase tracking-widest mb-4 block">Sobre la Dra. Isaura Dorado</span>
+                    <span className="font-sans text-gold-dark text-xs uppercase tracking-widest mb-4 block">Sobre la Dra. Isaura Dorado</span>
                     <h2 className="font-serif text-4xl md:text-5xl text-charcoal mb-8 leading-tight">
                         Medicina estética con <br/>
                         <span className="italic text-gold-dark">precisión artística.</span>

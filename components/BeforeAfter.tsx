@@ -114,7 +114,7 @@ const BeforeAfter: React.FC = () => {
         
         {/* Header */}
         <div className="text-center mb-16 max-w-3xl mx-auto">
-             <span className="text-gold text-xs uppercase tracking-widest mb-4 block">Galería de Transformaciones</span>
+             <span className="text-gold-dark text-xs uppercase tracking-widest mb-4 block">Galería de Transformaciones</span>
              <h2 className="font-serif text-4xl md:text-5xl text-charcoal mb-6">Resultados Reales</h2>
              <p className="font-sans text-taupe font-light tracking-wide text-lg">
                 Desliza para descubrir el cambio. La evidencia de nuestra dedicación a la armonía natural.
