@@ -1,83 +1,87 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Dra. Isaura Dorado - Rostro Dorado Clinic. Medicina estética y antienvejecimiento en Riohacha. Tratamientos de armonización facial, botox, ácido hialurónico y cuidado de la piel." />
-    <title>Dra. Isaura Dorado | Rostro Dorado Clinic</title>
-    
-    <!-- Fonts - Display Swap added for performance -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Montserrat:wght@200;300;400;500&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              gold: {
-                DEFAULT: '#C6A87C', 
-                light: '#E5D6C0', 
-                // Oscurecido para accesibilidad en textos pequeños (Contrast Ratio > 4.5:1)
-                dark: '#856b46',
-              },
-              base: {
-                DEFAULT: '#F9F8F6',
-                white: '#FFFFFF',
-              },
-              charcoal: {
-                DEFAULT: '#111111', 
-                light: '#4A4A4A',
-              },
-              // Darkened taupe for better contrast accessibility
-              taupe: '#635c57', 
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="Dra. Isaura Dorado - Rostro Dorado Clinic. Medicina estética y antienvejecimiento en Riohacha. Tratamientos de armonización facial, botox, ácido hialurónico y cuidado de la piel." />
+  <title>Dra. Isaura Dorado | Rostro Dorado Clinic</title>
+
+  <!-- Fonts - Display Swap added for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Montserrat:wght@200;300;400;500&display=swap"
+    rel="stylesheet">
+
+  <!-- Google Identity Services & API -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            gold: {
+              DEFAULT: '#C6A87C',
+              light: '#E5D6C0',
+              // Oscurecido para accesibilidad en textos pequeños (Contrast Ratio > 4.5:1)
+              dark: '#856b46',
             },
-            fontFamily: {
-              serif: ['"Playfair Display"', 'serif'],
-              sans: ['"Montserrat"', 'sans-serif'],
+            base: {
+              DEFAULT: '#F9F8F6',
+              white: '#FFFFFF',
             },
-            letterSpacing: {
-              widest: '.25em',
-            }
+            charcoal: {
+              DEFAULT: '#111111',
+              light: '#4A4A4A',
+            },
+            // Darkened taupe for better contrast accessibility
+            taupe: '#635c57',
+          },
+          fontFamily: {
+            serif: ['"Lora"', 'serif'],
+            sans: ['"Montserrat"', 'sans-serif'],
+          },
+          letterSpacing: {
+            widest: '.25em',
           }
         }
       }
-    </script>
-    <style>
-      html {
-        scroll-behavior: smooth;
-      }
-      /* Custom scrollbar */
-      ::-webkit-scrollbar {
-        width: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #F9F8F6;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #C6A87C;
-        border-radius: 3px;
-      }
-      
-      @media (pointer: fine) {
-        body {
-          cursor: none;
-        }
-        a, button, input, textarea, select, .cursor-hover {
-          cursor: none; 
-        }
-      }
-      
-      .text-outline {
-        -webkit-text-stroke: 1px rgba(198, 168, 124, 0.3);
-        color: transparent;
-      }
-    </style>
-<script type="importmap">
+    }
+  </script>
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #F9F8F6;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #C6A87C;
+      border-radius: 3px;
+    }
+
+
+
+    .text-outline {
+      -webkit-text-stroke: 1px rgba(198, 168, 124, 0.3);
+      color: transparent;
+    }
+  </style>
+  <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.2",
@@ -91,8 +95,10 @@
 }
 </script>
 </head>
-  <body class="bg-base text-charcoal font-sans antialiased overflow-x-hidden selection:bg-gold selection:text-white">
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+
+<body class="bg-[#0a0a0a] text-charcoal font-sans antialiased overflow-x-hidden selection:bg-gold selection:text-white">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>

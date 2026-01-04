@@ -1,35 +1,57 @@
 import React from 'react';
-import Navbar from './components/Layout/Navbar';
-import Hero from './components/Hero';
-import About from './components/About';
-import Treatments from './components/Treatments';
-import BeforeAfter from './components/BeforeAfter';
-import InstagramFeed from './components/InstagramFeed';
-import Contact from './components/Contact';
-import Footer from './components/Layout/Footer';
-import CustomCursor from './components/CustomCursor';
-import FloatingWhatsApp from './components/FloatingWhatsApp';
-import LegalModal from './components/LegalModal';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Home from './components/Home';
+import ProductsPage from './components/ProductsPage';
+import ProductDetailsPage from './components/ProductDetailsPage';
+
+import { CartProvider } from './context/CartContext';
+import CartDrawer from './components/Cart/CartDrawer';
+import CheckoutPage from './components/Checkout/CheckoutPage';
+
+import { AuthProvider } from './context/AuthContext';
+import LoginPage from './components/Auth/LoginPage';
+import RegisterPage from './components/Auth/RegisterPage';
+
+import ProtectedRoute from './components/Auth/ProtectedRoute';
+import AdminRoute from './components/Auth/AdminRoute'; // Imported
+import AdminDashboard from './components/Admin/AdminDashboard'; // Imported
+import OrdersPage from './components/Profile/OrdersPage';
+import ToastContainer from './components/ToastContainer'; // Imported
+import LoginVerifyPage from './components/Auth/LoginVerifyPage'; // Imported
 
 const App: React.FC = () => {
   return (
-    <div className="min-h-screen bg-base selection:bg-gold selection:text-white">
-      <CustomCursor />
-      <Navbar />
-      
-      <main>
-        <Hero />
-        <About />
-        <Treatments />
-        <BeforeAfter />
-        <InstagramFeed />
-        <Contact />
-      </main>
+    <AuthProvider>
+      <CartProvider>
+        <Router>
+          <ToastContainer />
+          <CartDrawer />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/productos" element={<ProductsPage />} />
+            <Route path="/productos/:id" element={<ProductDetailsPage />} />
 
-      <Footer />
-      <FloatingWhatsApp />
-      <LegalModal />
-    </div>
+            <Route path="/mis-pedidos" element={
+              <ProtectedRoute>
+                <OrdersPage />
+              </ProtectedRoute>
+            } />
+
+            {/* Changed: Checkout is now publicly accessible for Guest Checkout */}
+            <Route path="/checkout" element={<CheckoutPage />} />
+
+            <Route path="/admin/*" element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/verify-login" element={<LoginVerifyPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+          </Routes>
+        </Router>
+      </CartProvider>
+    </AuthProvider>
   );
 };
 
