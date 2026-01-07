@@ -165,7 +165,7 @@ exports.sendOtp = functions.https.onRequest((req, res) => {
   </table>
 </body>
 </html>`;
-      sendSmtpEmail.sender = { "name": "Rostro Dorado", "email": "info@rostrodorado.com" };
+      sendSmtpEmail.sender = { "name": "Rostro Dorado Clinic", "email": "no-reply@rostrodorado.com" };
       sendSmtpEmail.to = [{ "email": email }];
 
       await apiInstance.sendTransacEmail(sendSmtpEmail);
@@ -436,18 +436,83 @@ exports.sendOrderConfirmation = functions.firestore
         const pdfBuffer = await createInvoicePdf(newData, orderId);
         const pdfBase64 = pdfBuffer.toString('base64');
 
+        const bizSdk = require('facebook-nodejs-business-sdk');
+
         const brevoKey = functions.config().brevo ? functions.config().brevo.key : null;
         if (!brevoKey) {
           console.error("Brevo Key missing");
           return null;
         }
 
+        // --- FACEBOOK CAPI INTEGRATION ---
+        try {
+          const accessToken = 'EAAQjIlSbKvYBQWmvgzajCMib2mDJVZAwcKaai6BWjOFq94ftzZBmV092yxMDu7HsR3UwfCsTyMFZAnWtChvUemJFHgnybJSeCWMjf58e330961DmKIcCKNRzXgZBjlfEvslncwbjIsZBQQYBLjPVnuywjaZAUWtXm7ZBzbqSHGd0HerzDIEybZAVOoPO8LxReJ80KwZDZD';
+          const pixelId = '834940366041575';
+          const api = bizSdk.FacebookAdsApi.init(accessToken);
+
+          const ServerEvent = bizSdk.ServerEvent;
+          const EventRequest = bizSdk.EventRequest;
+          const UserData = bizSdk.UserData;
+          const CustomData = bizSdk.CustomData;
+          const Content = bizSdk.Content;
+
+          const currentTimestamp = Math.floor(new Date().getTime() / 1000);
+
+          const userData = (new UserData())
+            .setEmail(newData.customer.email)
+            .setPhone(newData.customer.phone || '')
+            .setFirstName(newData.customer.name ? newData.customer.name.split(' ')[0] : '')
+            .setLastName(newData.customer.name ? newData.customer.name.split(' ').slice(1).join(' ') : '')
+            .setCity(newData.customer.city || '')
+            .setState(newData.customer.department || '')
+            .setCountry('co'); // Colombia hardcoded for now
+
+          const contentList = newData.items.map(item => (
+            (new Content())
+              .setId(item.id || item.name)
+              .setQuantity(item.quantity)
+              .setTitle(item.name)
+              .setItemPrice(item.price)
+          ));
+
+          const customData = (new CustomData())
+            .setContents(contentList)
+            .setCurrency('COP')
+            .setValue(newData.total);
+
+          const serverEvent = (new ServerEvent())
+            .setEventName('Purchase')
+            .setEventTime(currentTimestamp)
+            .setUserData(userData)
+            .setCustomData(customData)
+            .setEventSourceUrl('https://rostrodorado-clinic.web.app/')
+            .setActionSource('website');
+
+          const eventsData = [serverEvent];
+          const eventRequest = (new EventRequest(accessToken, pixelId))
+            .setEvents(eventsData);
+
+          eventRequest.execute().then(
+            response => {
+              console.log('Facebook CAPI response: ', response);
+            },
+            err => {
+              console.error('Facebook CAPI Error: ', err);
+            }
+          );
+
+        } catch (fbError) {
+          console.error("Facebook CAPI Integration Failed:", fbError);
+          // Don't block email sending if FB fails
+        }
+        // ---------------------------------
+
         apiKey.apiKey = brevoKey;
         const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
         const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
         sendSmtpEmail.subject = `Confirmación de Pedido #${orderId.slice(0, 8).toUpperCase()} - Rostro Dorado`;
-        sendSmtpEmail.sender = { "name": "Rostro Dorado Clinic", "email": "diegoduartejoyeria@gmail.com" };
+        sendSmtpEmail.sender = { "name": "Rostro Dorado Clinic", "email": "no-reply@rostrodorado.com" };
         sendSmtpEmail.to = [{ "email": email, "name": name }];
 
         // Modern HTML Template
@@ -488,7 +553,7 @@ exports.sendOrderConfirmation = functions.firestore
                     </div>
                 </div>
                 <div class="footer">
-                    <p>Rostro Dorado Clinic - Cali, Colombia</p>
+                    <p>Rostro Dorado Clinic - Riohacha, La Guajira</p>
                     <p>Si tienes alguna duda, contáctanos.</p>
                 </div>
             </div>
@@ -565,6 +630,58 @@ exports.downloadInvoicePdf = functions.https.onCall(async (data, context) => {
   } catch (error) {
     console.error("Error generating PDF:", error);
     throw new functions.https.HttpsError('internal', 'Unable to generate PDF');
+  }
+});
+
+/**
+ * 5. facebookProductFeed
+ * Generates an XML feed for Facebook/Instagram/WhatsApp Catalog.
+ * URL: https://us-central1-rostrodorado-80279.cloudfunctions.net/facebookProductFeed
+ */
+exports.facebookProductFeed = functions.https.onRequest(async (req, res) => {
+  try {
+    const productsSnapshot = await admin.firestore().collection('products').get();
+
+    let xml = `<?xml version="1.0"?>
+<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">
+<channel>
+<title>Rostro Dorado Clinic Products</title>
+<link>https://rostrodorado-clinic.web.app</link>
+<description>Medical and aesthetic products from Rostro Dorado Clinic</description>
+`;
+
+    productsSnapshot.forEach(doc => {
+      const p = doc.data();
+      // Facebook/WhatsApp requirements
+      // id, title, description, availability, condition, price, link, image_link, brand
+
+      // Availability logic
+      const availability = (p.stock && p.stock > 0) ? 'in stock' : 'out of stock';
+
+      xml += `<item>
+<g:id>${doc.id}</g:id>
+<g:title><![CDATA[${p.name}]]></g:title>
+<g:description><![CDATA[${p.description || p.longDescription || p.name}]]></g:description>
+<g:link>https://rostrodorado-clinic.web.app/tienda</g:link>
+<g:image_link>${p.image}</g:image_link>
+<g:brand>Rostro Dorado</g:brand>
+<g:condition>new</g:condition>
+<g:availability>${availability}</g:availability>
+<g:price>${p.price} COP</g:price>
+<g:google_product_category>Health &amp; Beauty &gt; Personal Care</g:google_product_category>
+</item>
+`;
+    });
+
+    xml += `</channel>
+</rss>`;
+
+    res.set('Content-Type', 'application/xml');
+    res.status(200).send(xml);
+
+  } catch (error) {
+    console.error("Error generating feed:", error);
+    res.status(500).send("Error generating feed");
   }
 });
 

@@ -15,8 +15,6 @@ import {
     X,
     TrendingUp,
     AlertCircle,
-    Server,
-    Database,
     CreditCard,
     Activity,
     Clock,
@@ -30,7 +28,7 @@ import AdminOrders from './AdminOrders';
 import AdminProducts from './AdminProducts';
 import AdminUsers from './AdminUsers';
 import AdminPayments from './AdminPayments';
-import SystemStatus from './SystemStatus';
+
 import SalesChart from './SalesChart';
 import AdminChats from './AdminChats';
 
@@ -198,7 +196,6 @@ const AdminDashboard: React.FC = () => {
         { id: 'payments', label: 'Pagos', icon: CreditCard },
         { id: 'products', label: 'Productos', icon: Package },
         { id: 'users', label: 'Usuarios', icon: Users },
-        { id: 'system', label: 'Sistema', icon: Server },
     ];
 
     const renderActivityItem = (item: any) => {
@@ -345,8 +342,7 @@ const AdminDashboard: React.FC = () => {
                 return <AdminProducts />;
             case 'users':
                 return <AdminUsers />;
-            case 'system':
-                return <SystemStatus />;
+
             default:
                 return null;
         }
@@ -379,13 +375,7 @@ const AdminDashboard: React.FC = () => {
                 </nav>
 
                 <div className="p-4 border-t border-white/10 space-y-2 flex-shrink-0 bg-[#111]">
-                    <button
-                        onClick={() => setActiveTab('system')}
-                        className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-colors ${activeTab === 'system' ? 'text-blue-500 bg-blue-500/10' : 'text-blue-500 hover:bg-blue-500/10'}`}
-                    >
-                        <Database size={20} />
-                        <span>Estado BD</span>
-                    </button>
+
                     <button
                         onClick={handleLogout}
                         className="w-full flex items-center gap-4 px-4 py-3 text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
