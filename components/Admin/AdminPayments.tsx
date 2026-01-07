@@ -3,6 +3,7 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Payment } from '../../types';
 import { DollarSign, Calendar, CreditCard, CheckCircle, XCircle, ExternalLink, Download } from 'lucide-react';
+import { parseFirestoreDate } from '../../utils/dateUtils';
 
 interface AdminPaymentsProps {
     onViewOrder?: (orderId: string) => void;
@@ -35,8 +36,8 @@ const AdminPayments: React.FC<AdminPaymentsProps> = ({ onViewOrder }) => {
     };
 
     const formatDate = (timestamp: any) => {
-        if (!timestamp) return '';
-        const date = timestamp.toDate();
+        const date = parseFirestoreDate(timestamp);
+        if (!date) return '';
         return new Intl.DateTimeFormat('es-CO', {
             dateStyle: 'medium',
             timeStyle: 'short'
@@ -70,7 +71,7 @@ const AdminPayments: React.FC<AdminPaymentsProps> = ({ onViewOrder }) => {
             payment.amountInCents / 100,
             payment.paymentMethod || '',
             payment.status,
-            payment.createdAt ? payment.createdAt.toDate().toLocaleDateString() : ''
+            parseFirestoreDate(payment.createdAt)?.toLocaleDateString() || ''
         ]);
 
         const csvContent = [

@@ -49,14 +49,14 @@ const LoginVerifyPage: React.FC = () => {
     }, [navigate]);
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
+        <div className="min-h-screen bg-[#f9f8f6] flex flex-col">
             <Navbar />
 
             <div className="flex-1 flex items-center justify-center px-6">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="w-full max-w-md bg-white/5 border border-white/10 p-8 rounded-3xl text-center backdrop-blur-sm"
+                    className="w-full max-w-md bg-white border border-gray-100 p-8 rounded-3xl text-center shadow-xl"
                 >
                     <div className="flex justify-center mb-6">
                         {status === 'verifying' && <Loader2 size={48} className="text-gold animate-spin" />}
@@ -64,20 +64,20 @@ const LoginVerifyPage: React.FC = () => {
                         {status === 'error' && <AlertCircle size={48} className="text-red-500" />}
                     </div>
 
-                    <h2 className="text-2xl font-serif text-white mb-2">
+                    <h2 className="text-2xl font-serif text-black mb-2">
                         {status === 'verifying' && 'Verificando...'}
                         {status === 'success' && '¡Bienvenido!'}
                         {status === 'error' && 'Error de Acceso'}
                     </h2>
 
-                    <p className="text-white/60 mb-8 font-light">
+                    <p className="text-gray-500 mb-8 font-light">
                         {message}
                     </p>
 
                     {status === 'error' && (
                         <button
                             onClick={() => navigate('/login')}
-                            className="bg-gold text-black px-6 py-2 rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-white transition-colors"
+                            className="bg-black text-white px-6 py-2 rounded-lg font-bold uppercase text-xs tracking-widest hover:bg-gold hover:text-black transition-colors"
                         >
                             Volver al Login
                         </button>

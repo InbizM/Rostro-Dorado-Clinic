@@ -105,7 +105,7 @@ const Navbar: React.FC = () => {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ease-in-out ${isSolid ? 'bg-white/90 backdrop-blur-md py-6 shadow-sm' : 'bg-transparent py-8'
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ease-in-out ${isSolid ? 'bg-white py-6' : 'bg-transparent py-8'
           }`}
       >
         <div className="max-w-[1400px] mx-auto px-6 md:px-12 flex justify-between items-center h-full relative">
@@ -190,12 +190,11 @@ const Navbar: React.FC = () => {
               <div className="relative group">
                 <button className={`flex items-center gap-2 ${textColor} hover:${hoverColor} transition-colors duration-300 cursor-hover`}>
                   <User size={20} />
-                  <span className="text-xs font-serif hidden lg:block">{currentUser.displayName?.split(' ')[0] || 'Usuario'}</span>
                 </button>
                 <div className="absolute right-0 mt-2 w-48 bg-white shadow-xl rounded-xl py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform origin-top-right z-50">
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-xs text-gray-500">Hola,</p>
-                    <p className="text-sm font-bold text-gray-900 truncate">{currentUser.displayName || 'Usuario'}</p>
+                    <p className="text-sm font-bold text-gray-900 truncate">{currentUser.displayName || currentUser.email}</p>
                   </div>
                   <Link
                     to="/mis-pedidos"
@@ -314,7 +313,7 @@ const Navbar: React.FC = () => {
             </div>
 
             <div className="absolute bottom-12 text-center">
-              <p className="text-xs uppercase tracking-widest text-gold mb-2 font-sans font-medium">Riohacha, Colombia</p>
+              <p className="text-xs uppercase tracking-widest text-gold mb-2 font-sans font-medium">Calle 12 #12-03 local 2, Riohacha</p>
               <p className="font-serif text-lg text-charcoal">+57 312 619 6527</p>
             </div>
           </motion.div>

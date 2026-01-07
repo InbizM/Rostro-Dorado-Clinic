@@ -8,6 +8,39 @@
   <meta name="description"
     content="Dra. Isaura Dorado - Rostro Dorado Clinic. Medicina estética y antienvejecimiento en Riohacha. Tratamientos de armonización facial, botox, ácido hialurónico y cuidado de la piel." />
   <title>Dra. Isaura Dorado | Rostro Dorado Clinic</title>
+  <script>
+    // Global Polyfills for Local Development / Non-Secure Contexts causing Wompi Crashes
+    // Enhanced version using Object.defineProperty to bypass read-only constraints
+
+    if (!window.crypto) {
+      window.crypto = {};
+    }
+    if (!window.crypto.subtle) {
+      window.crypto.subtle = {
+        digest: async () => new Uint8Array(32)
+      };
+    }
+
+    if (!navigator.mediaDevices) {
+      try {
+        Object.defineProperty(navigator, 'mediaDevices', {
+          value: {
+            enumerateDevices: async () => []
+          },
+          writable: true,
+          configurable: true
+        });
+      } catch (e) {
+        console.warn("Failed to polyfill navigator.mediaDevices", e);
+        // Fallback assignment just in case
+        navigator.mediaDevices = {
+          enumerateDevices: async () => []
+        };
+      }
+    } else if (!navigator.mediaDevices.enumerateDevices) {
+      navigator.mediaDevices.enumerateDevices = async () => [];
+    }
+  </script>
 
   <!-- Fonts - Display Swap added for performance -->
   <link rel="preconnect" href="https://fonts.googleapis.com">

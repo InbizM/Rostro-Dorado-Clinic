@@ -41,6 +41,7 @@ export interface Product {
   usage?: string;
   benefits?: string[];
   costPrice?: number;
+  basePrice?: number; // Price before Wompi fee
   stock?: number;
   media?: { type: 'image' | 'video'; url: string }[];
 }
@@ -53,24 +54,27 @@ export interface Order {
   id: string;
   userId: string;
   customer: {
-    firstName: string;
-    lastName: string;
+    name: string;
     email: string;
     phone: string;
-    identification: string; // Cédula/NIT
     address: string;
-    apartment?: string; // Optional
-    department?: string;
     city: string;
-    postalCode?: string; // Optional
+    department: string;
+    postalCode?: string; // Added postal code
     notes?: string;
+    firstName?: string; // Legacy/Optional
+    lastName?: string;  // Legacy/Optional
+    identification?: string;
+    apartment?: string;
   };
   items: CartItem[];
   total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  paymentStatus?: 'pending' | 'approved' | 'declined' | 'voided';
-  transactionId?: string;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'rejected' | 'declined' | 'error';
+  paymentStatus?: 'approved' | 'declined' | 'voided' | 'error';
   createdAt: any; // Firebase Timestamp
+  updatedAt?: any;
+  paymentMethod: string;
+  transactionId?: string;
 }
 
 export interface Payment {
@@ -93,6 +97,7 @@ export interface Address {
   address: string;
   department: string;
   city: string;
+  postalCode?: string;
   notes?: string;
   isDefault?: boolean;
 }
@@ -106,6 +111,7 @@ export interface UserProfile {
   photoURL?: string;
   addresses?: Address[];
   role?: 'admin' | 'customer';
+  createdAt?: any;
 }
 
 export interface Category {

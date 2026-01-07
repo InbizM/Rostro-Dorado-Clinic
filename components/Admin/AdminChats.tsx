@@ -5,6 +5,7 @@ import { db } from '../../firebase';
 import { Order, ChatMessage } from '../../types';
 import { MessageCircle, Package, User, ChevronRight } from 'lucide-react';
 import OrderChat from '../OrderChat';
+import { parseFirestoreDate } from '../../utils/dateUtils';
 
 const AdminChats: React.FC = () => {
     const [orders, setOrders] = useState<Order[]>([]);
@@ -45,8 +46,8 @@ const AdminChats: React.FC = () => {
     };
 
     const formatDate = (timestamp: any) => {
-        if (!timestamp) return '';
-        const date = timestamp.toDate();
+        const date = parseFirestoreDate(timestamp);
+        if (!date) return '';
         return new Intl.DateTimeFormat('es-CO', {
             month: 'short',
             day: 'numeric',
@@ -103,7 +104,7 @@ const AdminChats: React.FC = () => {
                                     </div>
                                     <div className="flex items-center gap-2 text-white/70 text-sm">
                                         <User size={14} />
-                                        <span className="truncate">{order.customer?.name || 'Cliente'}</span>
+                                        <span className="truncate">{order.customer?.firstName ? `${order.customer.firstName} ${order.customer.lastName}` : 'Cliente'}</span>
                                     </div>
                                 </div>
 

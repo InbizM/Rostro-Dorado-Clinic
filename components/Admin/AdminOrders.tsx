@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { collection, getDocs, doc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, query, orderBy, onSnapshot, Timestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Order } from '../../types';
-import { Package, Calendar, User, MapPin, ChevronDown, ChevronUp, Download, MessageCircle } from 'lucide-react';
+import { Package, Calendar, User, MapPin, ChevronDown, ChevronUp, Download, MessageCircle, Search, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, Printer, Mail, Phone, ShoppingBag, FileText } from 'lucide-react';
 import OrderChat from '../OrderChat';
+import { parseFirestoreDate } from '../../utils/dateUtils';
+import { showToast } from '../../components/ToastContainer';
+import ShippingLabelModal from './ShippingLabelModal';
 
 interface AdminOrdersProps {
     highlightOrderId?: string | null;
@@ -15,6 +18,7 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
     const [loading, setLoading] = useState(true);
     const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
     const [chatOrder, setChatOrder] = useState<Order | null>(null);
+    const [shippingLabelOrder, setShippingLabelOrder] = useState<Order | null>(null);
 
     useEffect(() => {
         fetchOrders();
@@ -57,7 +61,8 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
     const updateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
         try {
             await updateDoc(doc(db, 'orders', orderId), {
-                status: newStatus
+                status: newStatus,
+                updatedAt: new Date()
             });
             setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
         } catch (error) {
@@ -77,8 +82,8 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
     };
 
     const formatDate = (timestamp: any) => {
-        if (!timestamp) return '';
-        const date = timestamp.toDate();
+        const date = parseFirestoreDate(timestamp);
+        if (!date) return '';
         return new Intl.DateTimeFormat('es-CO', {
             dateStyle: 'medium',
             timeStyle: 'short'
@@ -100,8 +105,8 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
         const headers = ['ID', 'Fecha', 'Cliente', 'Email', 'Teléfono', 'Total', 'Estado', 'Estado Pago'];
         const rows = orders.map(order => [
             order.id,
-            order.createdAt ? order.createdAt.toDate().toLocaleDateString() : '',
-            order.customer.name,
+            parseFirestoreDate(order.createdAt)?.toLocaleDateString() || '',
+            `${order.customer.firstName} ${order.customer.lastName}`,
             order.customer.email,
             order.customer.phone,
             order.total,
@@ -184,7 +189,7 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
 
                                 <div className="flex items-center gap-2 text-white/70 text-sm">
                                     <User size={14} />
-                                    {order.customer.name}
+                                    {`${order.customer.firstName} ${order.customer.lastName}`}
                                 </div>
 
                                 <div className="text-right">
@@ -219,7 +224,7 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
                                     <div>
                                         <h4 className="text-xs uppercase tracking-widest text-gold mb-4">Información del Cliente</h4>
                                         <div className="space-y-2 text-sm text-white/70 bg-white/5 p-4 rounded-lg">
-                                            <p><span className="text-white/30 uppercase text-xs block mb-1">Nombre:</span> {order.customer.name}</p>
+                                            <p><span className="text-white/30 uppercase text-xs block mb-1">Nombre:</span> {order.customer.firstName} {order.customer.lastName}</p>
                                             <p><span className="text-white/30 uppercase text-xs block mb-1">Email:</span> {order.customer.email}</p>
                                             <p><span className="text-white/30 uppercase text-xs block mb-1">Teléfono:</span> {order.customer.phone}</p>
                                             <p><span className="text-white/30 uppercase text-xs block mb-1">Dirección:</span> {order.customer.address}</p>
@@ -248,14 +253,25 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
                                         ))}
                                     </div>
 
-                                    {/* Chat Button */}
-                                    <button
-                                        onClick={() => setChatOrder(order)}
-                                        className="mt-4 flex items-center gap-2 px-4 py-2 bg-gold/20 hover:bg-gold/30 text-gold rounded-lg transition-colors border border-gold/30"
-                                    >
-                                        <MessageCircle size={18} />
-                                        <span className="text-sm font-bold uppercase tracking-wider">Chat con Cliente</span>
-                                    </button>
+                                    <div className="flex gap-4 mt-4">
+                                        {/* Chat Button */}
+                                        <button
+                                            onClick={() => setChatOrder(order)}
+                                            className="flex items-center gap-2 px-4 py-2 bg-gold/20 hover:bg-gold/30 text-gold rounded-lg transition-colors border border-gold/30"
+                                        >
+                                            <MessageCircle size={18} />
+                                            <span className="text-sm font-bold uppercase tracking-wider">Chat con Cliente</span>
+                                        </button>
+
+                                        {/* Guide Button */}
+                                        <button
+                                            onClick={() => setShippingLabelOrder(order)}
+                                            className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors border border-blue-500/30"
+                                        >
+                                            <Printer size={18} />
+                                            <span className="text-sm font-bold uppercase tracking-wider">Generar Guía</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -277,6 +293,14 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
                     isOpen={!!chatOrder}
                     onClose={() => setChatOrder(null)}
                     isAdmin={true}
+                />
+            )}
+
+            {/* Shipping Label Modal */}
+            {shippingLabelOrder && (
+                <ShippingLabelModal
+                    order={shippingLabelOrder}
+                    onClose={() => setShippingLabelOrder(null)}
                 />
             )}
         </div>

@@ -31,27 +31,35 @@ const ToastItem: React.FC<ToastProps> = ({ toast, onClose }) => {
     };
 
     const colors = {
-        success: 'bg-green-500/20 border-green-500/50 text-green-100',
-        error: 'bg-red-500/20 border-red-500/50 text-red-100',
-        info: 'bg-blue-500/20 border-blue-500/50 text-blue-100'
+        success: 'border-green-500 text-green-500',
+        error: 'border-red-500 text-red-500',
+        info: 'border-blue-500 text-blue-500'
+    };
+
+    const iconColors = {
+        success: 'text-green-500',
+        error: 'text-red-500',
+        info: 'text-blue-500'
     };
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: -50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 100, scale: 0.9 }}
-            className={`flex items-center gap-3 px-6 py-4 rounded-xl border backdrop-blur-sm shadow-2xl min-w-[300px] ${colors[toast.type]}`}
+            initial={{ opacity: 0, x: 20, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 20, scale: 0.95 }}
+            className={`flex items-center gap-3 px-5 py-4 rounded-lg bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-l-4 min-w-[320px] max-w-md ${colors[toast.type].split(' ')[0]}`}
         >
-            <div className="flex-shrink-0">
+            <div className={`flex-shrink-0 ${iconColors[toast.type]}`}>
                 {icons[toast.type]}
             </div>
-            <p className="flex-1 font-medium">{toast.message}</p>
+            <div className="flex-1">
+                <p className="font-medium text-gray-900 text-sm leading-snug">{toast.message}</p>
+            </div>
             <button
                 onClick={() => onClose(toast.id)}
-                className="flex-shrink-0 hover:opacity-70 transition-opacity"
+                className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
             >
-                <X size={18} />
+                <X size={16} />
             </button>
         </motion.div>
     );

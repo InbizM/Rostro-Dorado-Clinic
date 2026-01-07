@@ -1,116 +1,250 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { sendSignInLinkToEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithCustomToken } from 'firebase/auth'; // Import password auth and custom token
 import { auth } from '../../firebase';
-import { ArrowRight, CheckCircle, Mail } from 'lucide-react';
+import { ArrowRight, CheckCircle, Mail, Eye, EyeOff } from 'lucide-react';
 import Navbar from '../Layout/Navbar';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const LoginPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
-    const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [password, setPassword] = useState('');
+    const [otpCode, setOtpCode] = useState(''); // New state for OTP
+    const [showPassword, setShowPassword] = useState(false);
+    const [status, setStatus] = useState<'idle' | 'otp_sent' | 'success' | 'error'>('idle');
     const [errorMessage, setErrorMessage] = useState('');
+    const navigate = useNavigate();
+    const location = useLocation();
+    const hasSentAutoCode = React.useRef(false);
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // Auto-handle redirect from Checkout
+    React.useEffect(() => {
+        if (location.state?.email) {
+            setEmail(location.state.email);
+            if (location.state.autoSend && status === 'idle' && !hasSentAutoCode.current) {
+                // Prevent double sending
+                hasSentAutoCode.current = true;
+                const autoEmail = location.state.email;
+                handleSendCode(null, autoEmail);
+            }
+        }
+    }, [location.state]);
+
+    // Use emulator URL for local dev or production URL
+    // Since we don't have the cloud functions URL yet, we must change this after deployment.
+    // For now we assume local emulator default port 5001 or we will instruct user to deploy.
+    // const FUNCTIONS_URL = 'http://127.0.0.1:5001/rostro-dorado-clinic/us-central1';
+    // For production (after deploy): https://us-central1-rostro-dorado-clinic.cloudfunctions.net
+    const guessFunctionsUrl = () => {
+        if (window.location.hostname === 'localhost') {
+            return 'http://127.0.0.1:5001/rostrodorado-80279/us-central1';
+        }
+        return 'https://us-central1-rostrodorado-80279.cloudfunctions.net';
+    }
+    const FUNCTIONS_URL = guessFunctionsUrl();
+
+
+    const handleSendCode = async (e: React.FormEvent | null, manualEmail?: string) => {
+        if (e) e.preventDefault();
+        const targetEmail = manualEmail || email; // Use manual if provided
+
         setLoading(true);
         setStatus('idle');
         setErrorMessage('');
 
-        const actionCodeSettings = {
-            // URL you want to redirect back to. The domain (www.example.com) for this
-            // URL must be in the authorized domains list in the Firebase Console.
-            url: window.location.origin + '/verify-login',
-            handleCodeInApp: true,
-        };
-
         try {
-            await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-            // Save the email locally so you don't need to ask the user for it again
-            // if they open the link on the same device.
-            window.localStorage.setItem('emailForSignIn', email);
-            setStatus('success');
+            // ADMIN LOGIN FLOW (Password)
+            if (targetEmail === 'isauradorado@rostrodorado.com') {
+                if (!password) {
+                    // If admin enters email but no password yet, just let them see the password field
+                    // (Handled by UI state)
+                    if (status !== 'idle') return; // Don't loop
+                } else {
+                    const userCredential = await signInWithEmailAndPassword(auth, targetEmail, password);
+                    console.log('Admin logged in:', userCredential.user.uid);
+                    navigate('/admin');
+                    return;
+                }
+            }
+
+            // CUSTOMER OTP FLOW - STEP 1: SEND CODE
+            const response = await fetch(`${FUNCTIONS_URL}/sendOtp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: targetEmail })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Error enviando código.');
+
+            setStatus('otp_sent');
+
         } catch (error: any) {
             console.error(error);
             setStatus('error');
-            setErrorMessage('No se pudo enviar el enlace. Verifica que el correo sea válido.');
+            if (error.code === 'auth/wrong-password') {
+                setErrorMessage('Contraseña incorrecta.');
+            } else {
+                setErrorMessage(error.message || 'Error al conectar con el servidor.');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyCode = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setErrorMessage('');
+
+        try {
+            // CUSTOMER OTP FLOW - STEP 2: VERIFY CODE
+            const response = await fetch(`${FUNCTIONS_URL}/verifyOtp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code: otpCode })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Código inválido.');
+
+            // Sign in with custom token
+            await signInWithCustomToken(auth, data.token);
+            navigate('/productos'); // Or wherever
+
+        } catch (error: any) {
+            console.error(error);
+            setStatus('error'); // Keep them on the form
+            setErrorMessage(error.message || 'Código incorrecto. Intenta nuevamente.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] selection:bg-gold selection:text-white flex flex-col">
+        <div className="min-h-screen bg-[#f9f8f6] selection:bg-gold selection:text-white flex flex-col">
 
             <Navbar />
 
             <div className="flex-1 flex items-center justify-center px-6 pt-24 pb-12">
-                <div className="absolute top-0 left-0 w-96 h-96 bg-gold/5 rounded-full blur-[120px] pointer-events-none"></div>
+                <div className="absolute top-0 left-0 w-96 h-96 bg-gold/10 rounded-full blur-[120px] pointer-events-none"></div>
 
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="w-full max-w-md"
                 >
-                    <div className="bg-white/5 border border-white/10 p-8 md:p-12 rounded-3xl relative overflow-hidden backdrop-blur-sm shadow-2xl">
+                    <div className="bg-white border border-gray-100 p-8 md:p-12 rounded-3xl relative overflow-hidden shadow-xl">
 
                         <div className="text-center mb-10">
-                            <h1 className="font-serif text-3xl text-white mb-2">Bienvenido</h1>
-                            <p className="text-white/50 text-sm font-light">Ingresa tu correo para recibir un código de acceso</p>
+                            <h1 className="font-serif text-3xl text-black mb-2">Bienvenido</h1>
+                            <p className="text-gray-500 text-sm font-light">
+                                {status === 'otp_sent'
+                                    ? `Ingresa el código enviado a ${email}`
+                                    : 'Ingresa tu correo para recibir un código de acceso'}
+                            </p>
                         </div>
 
-                        {status === 'success' ? (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="text-center"
-                            >
-                                <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/20">
-                                    <CheckCircle size={32} className="text-green-500" />
-                                </div>
-                                <h3 className="text-white font-serif text-xl mb-2">¡Enlace Enviado!</h3>
-                                <p className="text-white/60 text-sm font-light mb-6">
-                                    Hemos enviado un enlace mágico a <strong>{email}</strong>.<br />
-                                    Revisa tu bandeja de entrada (y spam) para ingresar.
-                                </p>
-                                <button
-                                    onClick={() => setStatus('idle')}
-                                    className="text-gold text-xs uppercase tracking-widest hover:text-white transition-colors"
-                                >
-                                    Intentar con otro correo
-                                </button>
-                            </motion.div>
-                        ) : (
-                            <form onSubmit={handleLogin} className="space-y-6">
-                                {status === 'error' && (
-                                    <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-xs p-4 rounded-xl text-center">
+                        {status === 'otp_sent' ? (
+                            <form onSubmit={handleVerifyCode} className="space-y-6">
+                                {status === 'error' && errorMessage && (
+                                    <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs p-4 rounded-xl text-center">
                                         {errorMessage}
                                     </div>
                                 )}
 
                                 <div className="space-y-2">
-                                    <label className="text-xs uppercase tracking-widest text-white/50 ml-1">Email</label>
+                                    <label className="text-xs uppercase tracking-widest text-gray-400 ml-1">Código de Seguridad</label>
                                     <div className="relative">
                                         <input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
+                                            type="text"
+                                            value={otpCode}
+                                            onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
                                             required
-                                            className="w-full bg-white/5 border border-white/10 p-4 rounded-xl text-white focus:outline-none focus:border-gold transition-colors pl-12"
-                                            placeholder="tu@email.com"
+                                            className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-black text-center text-2xl tracking-[0.5em] focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20 transition-all placeholder:text-gray-200"
+                                            placeholder="000000"
                                         />
-                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={20} />
                                     </div>
                                 </div>
 
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full relative overflow-hidden bg-gold text-black font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all duration-300 hover:shadow-[0_0_30px_rgba(212,175,55,0.3)] disabled:opacity-50 disabled:cursor-not-allowed group mt-4"
+                                    className="w-full relative overflow-hidden bg-black text-white font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all duration-300 hover:bg-gold hover:text-black hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group mt-4 border border-transparent"
                                 >
-                                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></div>
                                     <span className="relative z-10 flex items-center justify-center gap-2">
-                                        {loading ? 'Enviando...' : 'Enviar Código de Acceso'}
+                                        {loading ? 'Verificando...' : 'Verificar y Entrar'}
+                                        {!loading && <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />}
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setStatus('idle')}
+                                    className="w-full text-center text-xs text-gray-400 hover:text-black transition-colors"
+                                >
+                                    Enviar código a otro correo
+                                </button>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleSendCode} className="space-y-6">
+                                {status === 'error' && errorMessage && (
+                                    <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs p-4 rounded-xl text-center">
+                                        {errorMessage}
+                                    </div>
+                                )}
+
+                                <div className="space-y-2">
+                                    <label className="text-xs uppercase tracking-widest text-gray-400 ml-1">Email</label>
+                                    <div className="relative">
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            required
+                                            className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-black focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20 transition-all pl-12 placeholder:text-gray-300"
+                                            placeholder="tu@email.com"
+                                        />
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                    </div>
+                                </div>
+
+                                {/* Admin Password Field */}
+                                {email === 'isauradorado@rostrodorado.com' && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        className="space-y-2 overflow-hidden"
+                                    >
+                                        <label className="text-xs uppercase tracking-widest text-gray-400 ml-1">Contraseña Admin</label>
+                                        <div className="relative">
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-black focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold/20 transition-all pl-12 placeholder:text-gray-300"
+                                                placeholder="••••••••"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition-colors"
+                                            >
+                                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full relative overflow-hidden bg-black text-white font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all duration-300 hover:bg-gold hover:text-black hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group mt-4 border border-transparent"
+                                >
+                                    <span className="relative z-10 flex items-center justify-center gap-2">
+                                        {loading ? 'Procesando...' : (email === 'isauradorado@rostrodorado.com' ? 'Iniciar Sesión Admin' : 'Enviar Código')}
                                         {!loading && <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />}
                                     </span>
                                 </button>

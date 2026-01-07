@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeft, CheckCircle } from 'lucide-react'; // Removing Loader, using custom spinner or simple text
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, CheckCircle, ShoppingBag, MapPin, Plus, X } from 'lucide-react'; // Removing Loader, using custom spinner or simple text
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import Navbar from '../Layout/Navbar';
 import { useAuth } from '../../context/AuthContext';
 import Footer from '../Layout/Footer';
+import AddressBook from '../Profile/AddressBook'; // Import AddressBook
 
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -23,11 +24,16 @@ import {
 import { showToast } from '../../components/ToastContainer';
 
 const CheckoutPage: React.FC = () => {
-    const { cart, cartTotal, clearCart } = useCart();
+    const { cart, cartTotal, clearCart, toggleCart, cartCount } = useCart();
     const { currentUser } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+
+    // Address Selector State
+    const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+    const [selectedAddressId, setSelectedAddressId] = useState<string>('new');
+    const [showAddressModal, setShowAddressModal] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -48,26 +54,100 @@ const CheckoutPage: React.FC = () => {
 
     const [billingOption, setBillingOption] = useState<'same' | 'different'>('same');
 
-    // Load User Data if logged in
+    // Fetch Addresses
     useEffect(() => {
-        if (currentUser) {
+        const fetchAddresses = async () => {
+            if (currentUser) {
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                    if (userDoc.exists()) {
+                        const data = userDoc.data() as UserProfile;
+                        if (data.addresses && data.addresses.length > 0) {
+                            setSavedAddresses(data.addresses);
+
+                            // Check if we should auto-select default (only if form is empty or first load)
+                            const defaultAddr = data.addresses.find(a => a.isDefault);
+                            if (defaultAddr && selectedAddressId === 'new' && !formData.address) {
+                                handleSelectAddress(defaultAddr);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error("Error fetching addresses", err);
+                }
+            }
+        };
+        fetchAddresses();
+    }, [currentUser, showAddressModal]); // Re-fetch when modal closes
+
+    // Load User Data if logged in (or persisted data)
+    useEffect(() => {
+        const persistedData = localStorage.getItem('checkoutFormData');
+        if (persistedData && selectedAddressId === 'new') {
+            // Only load persisted if we are in 'new' mode, to avoid overwriting selected address
+            setFormData(JSON.parse(persistedData));
+        } else if (currentUser && selectedAddressId === 'new' && !formData.email) {
+            // Only load auth data if form is empty
             setFormData(prev => ({
                 ...prev,
                 email: currentUser.email || '',
                 firstName: currentUser.displayName?.split(' ')[0] || '',
                 lastName: currentUser.displayName?.split(' ').slice(1).join(' ') || ''
             }));
-            // Ideally we would fetch saved addresses here too, but for this redesign ensuring Guest Flow is priority.
-            // We can add address pre-fill optimization later.
         }
     }, [currentUser]);
 
+    const handleSelectAddress = (address: Address | 'new') => {
+        if (address === 'new') {
+            setSelectedAddressId('new');
+            // Clear address fields but keep contact info if possible, or just clear address specific
+            setFormData(prev => ({
+                ...prev,
+                address: '',
+                apartment: '',
+                department: '',
+                city: '',
+                postalCode: '',
+                notes: ''
+                // Keep name/phone/email/id as they might be the same
+            }));
+        } else {
+            setSelectedAddressId(address.id);
+            // Parse names
+            const names = address.recipientName.split(' ');
+            const fName = names[0] || '';
+            const lName = names.slice(1).join(' ') || '';
+
+            setFormData(prev => ({
+                ...prev,
+                firstName: fName,
+                lastName: lName,
+                address: address.address,
+                phone: address.phone,
+                department: address.department,
+                city: address.city,
+                postalCode: address.postalCode || '',
+                notes: address.notes || '',
+                apartment: '' // Address book usually doesn't have apartment separate, it's in address.
+            }));
+        }
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const value = e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
-        setFormData({ ...formData, [e.target.name]: value });
+        const newFormData = { ...formData, [e.target.name]: value };
+        setFormData(newFormData);
+        // Persist to localStorage
+        if (selectedAddressId === 'new') {
+            // Only persist if typing a new address, avoiding overwriting with saved address data which acts as temp
+            localStorage.setItem('checkoutFormData', JSON.stringify(newFormData));
+        }
     };
 
     const cities = COLOMBIA_DATA.find(d => d.departamento === formData.department)?.ciudades || [];
+
+    // State for preventing duplicate orders in same session
+    const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -76,29 +156,48 @@ const CheckoutPage: React.FC = () => {
         try {
             await loadWompiScript();
 
-            // 1. Create Order in Firebase
+            // 1. Create or Update Order in Firebase
             const orderData = {
                 userId: currentUser?.uid || 'guest',
                 customer: {
                     ...formData,
-                    // Combine legacy name field if ever needed by other components, or rely on split names
                     name: `${formData.firstName} ${formData.lastName}`.trim()
                 },
                 items: cart,
                 total: cartTotal,
                 status: 'pending',
-                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(), // Track updates
                 paymentMethod: 'wompi'
             };
 
-            const docRef = await addDoc(collection(db, 'orders'), orderData);
-            console.log("Order created:", docRef.id);
+            let orderId = currentOrderId;
+
+            if (orderId) {
+                // Update existing order
+                const orderRef = doc(db, 'orders', orderId);
+                await updateDoc(orderRef, orderData);
+                console.log("Order updated:", orderId);
+            } else {
+                // Create new order
+                const docRef = await addDoc(collection(db, 'orders'), {
+                    ...orderData,
+                    createdAt: serverTimestamp()
+                });
+                orderId = docRef.id;
+                setCurrentOrderId(orderId);
+                console.log("Order created:", orderId);
+            }
 
             // 2. Prepare Wompi Data
-            const amountInCents = cartTotal * 100;
+            const amountInCents = Math.round(cartTotal * 100);
             const currency = 'COP';
-            const reference = docRef.id;
+            // Use unique reference for Wompi transaction attempt (Order ID + Timestamp)
+            const reference = `${orderId}-${Date.now().toString().slice(-6)}`;
+
             const integritySignature = await generateSignature(reference, amountInCents, currency, WOMPI_INTEGRITY_SECRET);
+
+            // Clean Phone Number
+            const cleanPhone = formData.phone.replace(/\D/g, '').slice(-10);
 
             const checkoutConfig: WompiWidgetConfig = {
                 currency,
@@ -110,7 +209,7 @@ const CheckoutPage: React.FC = () => {
                 customerData: {
                     email: formData.email,
                     fullName: `${formData.firstName} ${formData.lastName}`,
-                    phoneNumber: formData.phone,
+                    phoneNumber: cleanPhone,
                     phoneNumberPrefix: '+57',
                     legalId: formData.identification,
                     legalIdType: 'CC'
@@ -126,38 +225,43 @@ const CheckoutPage: React.FC = () => {
 
             // @ts-ignore
             const checkout = new WidgetCheckout(checkoutConfig);
-            document.body.style.overflow = 'hidden';
 
             checkout.open(async (result: any) => {
-                document.body.style.overflow = 'auto';
                 const transaction = result.transaction;
 
                 if (transaction.status === 'APPROVED') {
                     setSuccess(true);
                     clearCart();
+                    localStorage.removeItem('checkoutFormData');
+                    setCurrentOrderId(null); // Reset
 
-                    // Update Order & Create Payment Record logic...
-                    const orderRef = doc(db, 'orders', docRef.id);
-                    await updateDoc(orderRef, {
-                        status: 'processing',
-                        paymentStatus: 'approved',
-                        transactionId: transaction.id
-                    });
+                    if (orderId) {
+                        const orderRef = doc(db, 'orders', orderId);
+                        await updateDoc(orderRef, {
+                            status: 'processing',
+                            paymentStatus: 'approved',
+                            transactionId: transaction.id,
+                            paymentMethod: transaction.paymentMethodType // Save the real method (CARD, NEQUI, etc)
+                        });
 
-                    // Add Payment Record... (Simplified for brevity, similar to previous)
-                    await addDoc(collection(db, 'payments'), {
-                        id: transaction.id,
-                        orderId: docRef.id,
-                        userId: currentUser?.uid || 'guest',
-                        amountInCents: transaction.amountInCents,
-                        status: transaction.status,
-                        paymentMethod: transaction.paymentMethodType,
-                        reference: transaction.reference,
-                        createdAt: serverTimestamp(),
-                        customerEmail: transaction.customerEmail
-                    });
+                        await addDoc(collection(db, 'payments'), {
+                            id: transaction.id,
+                            orderId: orderId,
+                            userId: currentUser?.uid || 'guest',
+                            amountInCents: transaction.amountInCents,
+                            status: transaction.status,
+                            paymentMethod: transaction.paymentMethodType,
+                            reference: transaction.reference,
+                            createdAt: serverTimestamp(),
+                            customerEmail: transaction.customerEmail
+                        });
+                    }
 
                 } else if (transaction.status === 'DECLINED' || transaction.status === 'ERROR') {
+                    // Update order status to reflect failure attempt if needed, 
+                    // but keeping it as pending allows retry without confusing user.
+                    // Or we could set it to 'payment_failed' if we had that status.
+                    // For now, just showing toast.
                     showToast('Transacción rechazada o error. Intenta nuevamente.', 'error');
                 }
             });
@@ -171,6 +275,21 @@ const CheckoutPage: React.FC = () => {
     };
 
     if (success) {
+        // Auto-redirect to Login
+        setTimeout(() => {
+            if (currentUser) {
+                navigate('/mis-pedidos', { replace: true });
+            } else {
+                navigate('/login', {
+                    state: {
+                        email: formData.email,
+                        autoSend: true
+                    },
+                    replace: true
+                });
+            }
+        }, 4000);
+
         return (
             <div className="min-h-screen bg-[#fff] flex flex-col items-center justify-center text-center px-6 text-black">
                 <motion.div
@@ -180,12 +299,16 @@ const CheckoutPage: React.FC = () => {
                 >
                     <CheckCircle size={64} className="text-black mx-auto mb-6" />
                     <h1 className="font-serif text-3xl mb-4">¡Gracias por tu compra!</h1>
-                    <p className="mb-8 font-light">
+                    <p className="mb-4 font-light">
                         Hemos recibido tu pedido. Te enviaremos un correo con la confirmación.
                     </p>
-                    <Link to="/" className="inline-block bg-black text-white uppercase tracking-widest text-xs font-bold px-8 py-4 hover:opacity-80 transition-opacity">
-                        Volver al Inicio
-                    </Link>
+                    <p className="text-sm text-gray-500 mb-8 max-w-xs mx-auto">
+                        Te estamos redirigiendo para que ingreses a tu cuenta y puedas ver el estado de tu pedido...
+                    </p>
+                    <div className="w-16 mx-auto">
+                        {/* Simple loader */}
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black m-auto"></div>
+                    </div>
                 </motion.div>
             </div>
         );
@@ -232,7 +355,19 @@ const CheckoutPage: React.FC = () => {
                         Clinic
                     </span>
                 </Link>
-                {/* Bag Icon with count? */}
+
+                {/* Cart Toggle Button */}
+                <button
+                    onClick={toggleCart}
+                    className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                    <ShoppingBag size={24} className="text-black" />
+                    {cartCount > 0 && (
+                        <span className="absolute top-1 right-0 bg-black text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                            {cartCount}
+                        </span>
+                    )}
+                </button>
             </div>
 
             <main className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-2">
@@ -275,7 +410,64 @@ const CheckoutPage: React.FC = () => {
                         <section>
                             <h2 className="text-xl font-medium mb-4">Entrega</h2>
 
-                            <div className="space-y-3">
+                            {/* Saved Addresses Selector */}
+                            {currentUser && savedAddresses.length > 0 && (
+                                <div className="mb-6 space-y-3">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="text-sm font-medium text-gray-700">Mis Direcciones Guardadas</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAddressModal(true)}
+                                            className="text-xs font-bold uppercase tracking-wider text-gold hover:text-black transition-colors flex items-center gap-1"
+                                        >
+                                            <MapPin size={12} /> Gestionar
+                                        </button>
+                                    </div>
+                                    <div className="grid gap-3">
+                                        {savedAddresses.map((addr) => (
+                                            <div
+                                                key={addr.id}
+                                                onClick={() => handleSelectAddress(addr)}
+                                                className={`cursor-pointer p-4 border rounded-lg transition-all flex items-start gap-3 ${selectedAddressId === addr.id ? 'border-black bg-gray-50 ring-1 ring-black' : 'border-gray-200 hover:border-gray-400'}`}
+                                            >
+                                                <div className={`mt-1 w-4 h-4 rounded-full border flex items-center justify-center ${selectedAddressId === addr.id ? 'border-black' : 'border-gray-400'}`}>
+                                                    {selectedAddressId === addr.id && <div className="w-2 h-2 rounded-full bg-black" />}
+                                                </div>
+                                                <div className="text-sm">
+                                                    <span className="font-bold text-gray-800 block">{addr.name}</span>
+                                                    <span className="text-gray-600 block">{addr.address}</span>
+                                                    <span className="text-gray-500 text-xs">{addr.city}, {addr.department}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        {/* Option for New Address */}
+                                        <div
+                                            onClick={() => handleSelectAddress('new')}
+                                            className={`cursor-pointer p-4 border rounded-lg transition-all flex items-center gap-3 ${selectedAddressId === 'new' ? 'border-black bg-gray-50 ring-1 ring-black' : 'border-gray-200 hover:border-gray-400'}`}
+                                        >
+                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selectedAddressId === 'new' ? 'border-black' : 'border-gray-400'}`}>
+                                                {selectedAddressId === 'new' && <div className="w-2 h-2 rounded-full bg-black" />}
+                                            </div>
+                                            <span className="font-medium text-gray-800 text-sm">Usar otra dirección</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {currentUser && savedAddresses.length === 0 && (
+                                <div className="mb-6">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAddressModal(true)}
+                                        className="text-sm bg-gray-100 hover:bg-gray-200 text-black px-4 py-2 rounded-lg flex items-center gap-2 transition-colors font-medium border border-gray-200"
+                                    >
+                                        <Plus size={16} /> Guardar una dirección nueva para futuros pedidos
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className={`space-y-3 transition-opacity duration-300 ${selectedAddressId !== 'new' ? 'opacity-80' : ''}`}>
                                 {/* Country */}
                                 <div className="border border-gray-300 rounded p-3 text-gray-600 text-sm bg-gray-50">
                                     País / Región <br />
@@ -390,7 +582,7 @@ const CheckoutPage: React.FC = () => {
                         <section>
                             <h2 className="text-xl font-medium mb-4">Métodos de envío</h2>
                             <div className="border border-gray-300 rounded p-4 flex justify-between items-center bg-gray-50">
-                                <span className="text-sm text-gray-800">Compras superiores a $500.000</span>
+                                <span className="text-sm text-gray-800">Compras superiores a $300.000</span>
                                 <span className="font-bold text-sm">GRATIS</span>
                             </div>
                         </section>
@@ -402,15 +594,18 @@ const CheckoutPage: React.FC = () => {
 
                             <div className="border border-gray-300 rounded overflow-hidden">
                                 <div className="bg-gray-50 p-4 border-b border-gray-300 flex justify-between items-center">
-                                    <span className="font-medium text-sm">Wompi (Tarjetas, PSE, Nequi)</span>
-                                    <div className="flex gap-1">
-                                        <span className="bg-white border px-1 rounded text-[10px font-bold">VISA</span>
-                                        <span className="bg-white border px-1 rounded text-[10px font-bold">MC</span>
+                                    <span className="font-medium text-sm">Wompi (Tarjetas, PSE, Nequi, Bancolombia)</span>
+                                    <div className="flex gap-2 items-center">
+                                        <img src="/payments/visa.svg" alt="Visa" className="h-6 w-auto object-contain bg-white rounded-sm" />
+                                        <img src="/payments/mastercard.jpeg" alt="Mastercard" className="h-6 w-auto object-contain bg-white rounded-sm" />
+                                        <img src="/payments/american express.jpeg" alt="Amex" className="h-6 w-auto object-contain bg-white rounded-sm" />
+                                        <img src="/payments/bancolombia.jpeg" alt="Bancolombia" className="h-6 w-auto object-contain bg-white rounded-sm" />
+                                        <img src="/payments/PSE.png" alt="PSE" className="h-6 w-auto object-contain bg-white rounded-sm" />
                                     </div>
                                 </div>
                                 <div className="p-8 text-center bg-gray-50/50">
-                                    <div className="w-24 h-16 border-2 border-dashed border-gray-300 mx-auto rounded mb-4 flex items-center justify-center">
-                                        <span className="text-xs text-gray-400">Wompi Widget</span>
+                                    <div className="w-full max-w-xs mx-auto mb-6 opacity-80">
+                                        {/* Optional: Add a larger banner here if needed, or keep the widget placeholder clean */}
                                     </div>
                                     <p className="text-sm text-gray-600 px-8">
                                         Después de hacer clic en "Pagar ahora", serás redirigido a Wompi para completar tu compra de forma segura.
@@ -501,9 +696,33 @@ const CheckoutPage: React.FC = () => {
                             <span className="text-3xl font-bold text-black">${cartTotal.toLocaleString()}</span>
                         </div>
                     </div>
+
+                    <div className="mt-8 text-center border-t border-gray-100 pt-6">
+                        <Link to="/productos" className="text-gray-500 hover:text-black text-sm underline transition-colors flex items-center justify-center gap-2">
+                            <ShoppingBag size={14} />
+                            Seguir Comprando
+                        </Link>
+                    </div>
                 </div>
 
             </main>
+            {/* Address Book Modal */}
+            <AnimatePresence>
+                {showAddressModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-[#0a0a0a] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative shadow-2xl"
+                        >
+                            <div className="p-2">
+                                <AddressBook isModal={true} onClose={() => setShowAddressModal(false)} />
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

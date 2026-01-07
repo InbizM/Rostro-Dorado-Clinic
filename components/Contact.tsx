@@ -166,7 +166,7 @@ const Contact: React.FC = () => {
                     {/* Overlay Info for Mobile Map */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-charcoal to-transparent p-8 text-white lg:hidden z-30 pointer-events-none">
                         <p className="text-xs uppercase tracking-widest text-gold mb-1">Visítanos</p>
-                        <p className="font-serif text-xl">Calle 112 # 12-03, LC2 Riohacha</p>
+                        <p className="font-serif text-xl">Calle 12 #12-03 local 2, Riohacha</p>
                     </div>
                 </div>
 
@@ -177,7 +177,7 @@ const Contact: React.FC = () => {
 
                     <div className="relative z-10 max-w-xl mx-auto w-full">
                         <span className="inline-block py-1 px-3 border border-gold/30 rounded-full text-gold text-[10px] uppercase tracking-widest mb-6">
-                            Agenda Abierta 2024
+                            Agenda Abierta 2026
                         </span>
 
                         <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl mb-4 leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-white/60">
@@ -338,7 +338,7 @@ const Contact: React.FC = () => {
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                                 Respuesta Inmediata
                             </span>
-                            <span>Riohacha, La Guajira</span>
+                            <span>Calle 12 #12-03 local 2, Riohacha</span>
                             <span className="hover:text-gold transition-colors cursor-pointer">+57 312 619 6527</span>
                         </div>
                     </div>

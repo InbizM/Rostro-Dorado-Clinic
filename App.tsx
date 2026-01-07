@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './components/Home';
 import ProductsPage from './components/ProductsPage';
 import ProductDetailsPage from './components/ProductDetailsPage';
@@ -48,6 +48,12 @@ const App: React.FC = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/verify-login" element={<LoginVerifyPage />} />
             <Route path="/register" element={<RegisterPage />} />
+
+            {/* Redirect old /products to /productos */}
+            <Route path="/products" element={<Navigate to="/productos" replace />} />
+
+            {/* Catch all - Redirect to Home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
       </CartProvider>

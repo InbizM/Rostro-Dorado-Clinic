@@ -24,6 +24,8 @@ import {
     MessageCircle,
 } from 'lucide-react';
 
+import { parseFirestoreDate } from '../../utils/dateUtils';
+
 import AdminOrders from './AdminOrders';
 import AdminProducts from './AdminProducts';
 import AdminUsers from './AdminUsers';
@@ -75,8 +77,8 @@ const AdminDashboard: React.FC = () => {
             querySnapshot.docs.forEach(doc => {
                 const data = doc.data();
                 if (data.createdAt) {
-                    const date = data.createdAt.toDate();
-                    if (date >= thirtyDaysAgo) {
+                    const date = parseFirestoreDate(data.createdAt);
+                    if (date && date >= thirtyDaysAgo) {
                         const dateKey = date.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' });
                         if (dailySales[dateKey] !== undefined) {
                             dailySales[dateKey] += data.total || 0;
@@ -149,7 +151,11 @@ const AdminDashboard: React.FC = () => {
 
             // Combine and sort
             const combined = [...orders, ...payments, ...users]
-                .sort((a, b) => (b.date?.toMillis() || 0) - (a.date?.toMillis() || 0))
+                .sort((a, b) => {
+                    const dateA = parseFirestoreDate(a.date)?.getTime() || 0;
+                    const dateB = parseFirestoreDate(b.date)?.getTime() || 0;
+                    return dateB - dateA;
+                })
                 .slice(0, 10); // keep top 10 most recent across all categories
 
             setRecentActivities(combined);
@@ -160,8 +166,9 @@ const AdminDashboard: React.FC = () => {
     };
 
     const formatDate = (timestamp: any) => {
-        if (!timestamp) return 'Reciente';
-        const date = timestamp.toDate();
+        const date = parseFirestoreDate(timestamp);
+        if (!date) return 'Reciente';
+
         const now = new Date();
         const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
 

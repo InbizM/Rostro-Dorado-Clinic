@@ -4,6 +4,7 @@ import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { UserProfile, Order, Payment } from '../../types';
 import { Users, Mail, Calendar, Shield, X, ShoppingBag, CreditCard } from 'lucide-react';
+import { parseFirestoreDate } from '../../utils/dateUtils';
 
 const AdminUsers: React.FC = () => {
     const [users, setUsers] = useState<UserProfile[]>([]);
@@ -48,14 +49,22 @@ const AdminUsers: React.FC = () => {
             const ordersQ = query(collection(db, 'orders'), where('userId', '==', user.uid));
             const ordersSnapshot = await getDocs(ordersQ);
             const orders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order))
-                .sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis());
+                .sort((a, b) => {
+                    const dateA = parseFirestoreDate(a.createdAt)?.getTime() || 0;
+                    const dateB = parseFirestoreDate(b.createdAt)?.getTime() || 0;
+                    return dateB - dateA;
+                });
             setUserOrders(orders);
 
             // Fetch Payments
             const paymentsQ = query(collection(db, 'payments'), where('userId', '==', user.uid));
             const paymentsSnapshot = await getDocs(paymentsQ);
             const payments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment))
-                .sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis());
+                .sort((a, b) => {
+                    const dateA = parseFirestoreDate(a.createdAt)?.getTime() || 0;
+                    const dateB = parseFirestoreDate(b.createdAt)?.getTime() || 0;
+                    return dateB - dateA;
+                });
             setUserPayments(payments);
 
         } catch (error) {
@@ -66,8 +75,8 @@ const AdminUsers: React.FC = () => {
     };
 
     const formatDate = (timestamp: any) => {
-        if (!timestamp) return 'N/A';
-        const date = timestamp.toDate();
+        const date = parseFirestoreDate(timestamp);
+        if (!date) return 'N/A';
         return new Intl.DateTimeFormat('es-CO', {
             dateStyle: 'medium',
             timeStyle: 'short'
@@ -170,6 +179,39 @@ const AdminUsers: React.FC = () => {
                                 <div className="text-center py-8 text-white/50">Cargando historial...</div>
                             ) : (
                                 <>
+                                    {/* Contact Info from Latest Order */}
+                                    <div className="bg-white/5 p-6 rounded-lg border border-white/10 mb-8">
+                                        <h4 className="text-gold uppercase tracking-widest text-sm font-bold mb-4 flex items-center gap-2">
+                                            <Users size={16} /> Datos de Contacto (Último Pedido)
+                                        </h4>
+                                        {userOrders.length > 0 && userOrders[0].customer ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-white/80">
+                                                <div>
+                                                    <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Teléfono</p>
+                                                    <p>{userOrders[0].customer.phone || 'N/A'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Cédula</p>
+                                                    <p>{userOrders[0].customer.identification || 'N/A'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Dirección</p>
+                                                    <p>{userOrders[0].customer.address}</p>
+                                                    {userOrders[0].customer.notes && <p className="text-white/50 text-xs italic mt-1">"{userOrders[0].customer.notes}"</p>}
+                                                </div>
+                                                <div>
+                                                    <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Ubicación</p>
+                                                    <p>{userOrders[0].customer.city}, {userOrders[0].customer.department}</p>
+                                                    {userOrders[0].customer.postalCode && <p className="text-white/50 text-xs">CP: {userOrders[0].customer.postalCode}</p>}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-white/30 text-sm italic">
+                                                Este usuario no tiene pedidos recientes con información de contacto.
+                                            </p>
+                                        )}
+                                    </div>
+
                                     {/* Orders Section */}
                                     <div>
                                         <h4 className="flex items-center gap-2 text-gold uppercase tracking-widest text-sm font-bold mb-4">

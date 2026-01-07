@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, MessageCircle } from 'lucide-react';
+import { X, Send, MessageCircle, Lock } from 'lucide-react';
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ChatMessage, Order } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { parseFirestoreDate } from '../utils/dateUtils';
 
 interface OrderChatProps {
     order: Order;
@@ -124,7 +125,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ order, isOpen, onClose, isAdmin =
                                 ))}
                             </div>
                             <div className="flex justify-between items-center mt-2 text-xs">
-                                <span className="text-white/40">{order.customer?.name || 'Cliente'}</span>
+                                <span className="text-white/40">{order.customer?.firstName ? `${order.customer.firstName} ${order.customer.lastName}` : 'Cliente'}</span>
                                 <span className="text-gold font-bold">Total: ${order.total?.toLocaleString() || 0}</span>
                             </div>
                         </div>
@@ -157,7 +158,7 @@ const OrderChat: React.FC<OrderChatProps> = ({ order, isOpen, onClose, isAdmin =
                                                 </p>
                                                 <p className="text-sm">{msg.message}</p>
                                                 <p className={`text-[10px] mt-1 ${isMe ? 'text-black/40' : 'text-white/30'}`}>
-                                                    {msg.createdAt?.toDate?.()?.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) || '...'}
+                                                    {parseFirestoreDate(msg.createdAt)?.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) || '...'}
                                                 </p>
                                             </div>
                                         </div>
@@ -169,27 +170,38 @@ const OrderChat: React.FC<OrderChatProps> = ({ order, isOpen, onClose, isAdmin =
 
                         {/* Input */}
                         <div className="p-4 border-t border-white/10">
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={newMessage}
-                                    onChange={(e) => setNewMessage(e.target.value)}
-                                    onKeyPress={handleKeyPress}
-                                    placeholder="Escribe un mensaje..."
-                                    className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 outline-none focus:border-gold transition-colors"
-                                    disabled={sending}
-                                />
-                                <button
-                                    onClick={handleSend}
-                                    disabled={!newMessage.trim() || sending}
-                                    className={`p-3 rounded-xl transition-colors ${newMessage.trim() && !sending
-                                        ? 'bg-gold text-black hover:bg-white'
-                                        : 'bg-white/10 text-white/30 cursor-not-allowed'
-                                        }`}
-                                >
-                                    <Send size={20} />
-                                </button>
-                            </div>
+                            {order.status === 'delivered' ? (
+                                <div className="flex flex-col items-center justify-center py-6 space-y-2 opacity-50">
+                                    <div className="p-3 rounded-full bg-white/5">
+                                        <Lock size={16} className="text-white" />
+                                    </div>
+                                    <p className="text-xs uppercase tracking-widest text-white font-medium">
+                                        Chat Finalizado
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={newMessage}
+                                        onChange={(e) => setNewMessage(e.target.value)}
+                                        onKeyPress={handleKeyPress}
+                                        placeholder="Escribe un mensaje..."
+                                        className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 outline-none focus:border-gold transition-colors"
+                                        disabled={sending}
+                                    />
+                                    <button
+                                        onClick={handleSend}
+                                        disabled={!newMessage.trim() || sending}
+                                        className={`p-3 rounded-xl transition-colors ${newMessage.trim() && !sending
+                                            ? 'bg-gold text-black hover:bg-white'
+                                            : 'bg-white/10 text-white/30 cursor-not-allowed'
+                                            }`}
+                                    >
+                                        <Send size={20} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 </motion.div>

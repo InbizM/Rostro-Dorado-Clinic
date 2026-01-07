@@ -27,8 +27,20 @@ export interface WompiWidgetConfig {
     };
 }
 
+import CryptoJS from 'crypto-js';
+
 export const loadWompiScript = (): Promise<void> => {
     return new Promise((resolve, reject) => {
+        // Polyfill for enumerateDevices to prevent Wompi crash on insecure origins (HTTP)
+        if (!navigator.mediaDevices) {
+            // @ts-ignore
+            navigator.mediaDevices = {};
+        }
+        if (!navigator.mediaDevices.enumerateDevices) {
+            // @ts-ignore
+            navigator.mediaDevices.enumerateDevices = async () => [];
+        }
+
         if (document.getElementById('wompi-script')) {
             resolve();
             return;
@@ -51,9 +63,8 @@ export const generateSignature = async (
 ): Promise<string> => {
     // Cadena: Reference + AmountInCents + Currency + Secret
     const chain = `${reference}${amountInCents}${currency}${secret}`;
-    const encoder = new TextEncoder();
-    const data = encoder.encode(chain);
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // Use CryptoJS for robust SHA-256 hashing in all environments
+    const hash = CryptoJS.SHA256(chain);
+    return hash.toString(CryptoJS.enc.Hex);
 };

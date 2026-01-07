@@ -1,16 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../Layout/Navbar';
 import Footer from '../Layout/Footer';
 
 import { Order } from '../../types';
-import { Package, Calendar, MapPin, ChevronDown, ChevronUp, MessageCircle, User, X } from 'lucide-react';
+import { Package, Calendar, MapPin, ChevronDown, ChevronUp, MessageCircle, User, X, Trash2, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OrderChat from '../OrderChat';
+import InvoiceModal from './InvoiceModal';
 import AddressBook from './AddressBook';
+import { parseFirestoreDate } from '../../utils/dateUtils';
+import {
+    loadWompiScript,
+    generateSignature,
+    WOMPI_PUBLIC_KEY,
+    WOMPI_INTEGRITY_SECRET,
+    WompiWidgetConfig
+} from '../../utils/wompi';
+import { showToast } from '../../components/ToastContainer';
+
+
 
 const OrdersPage: React.FC = () => {
     const { currentUser } = useAuth();
@@ -18,69 +30,91 @@ const OrdersPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
     const [chatOrder, setChatOrder] = useState<Order | null>(null);
+    const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
     const [showAddressModal, setShowAddressModal] = useState(false);
+    const [retryingPaymentId, setRetryingPaymentId] = useState<string | null>(null);
+    const [orderToDelete, setOrderToDelete] = useState<string | null>(null); // State for delete modal
 
     useEffect(() => {
-        const fetchOrders = async () => {
-            if (!currentUser) {
-                console.log('⚠️ No hay usuario autenticado');
-                return;
-            }
+        if (!currentUser) {
+            setLoading(false);
+            return;
+        }
 
-            console.log('👤 Buscando pedidos para usuario:', currentUser.uid);
+        console.log('👤 Escuchando pedidos para:', currentUser.email);
+        setLoading(true);
 
-            try {
-                // Modified query to avoid "Missing Index" error. 
-                // We fetch by userId only, then sort in memory.
-                const q = query(
-                    collection(db, 'orders'),
-                    where('userId', '==', currentUser.uid)
-                );
+        const q = query(
+            collection(db, 'orders'),
+            where('customer.email', '==', currentUser.email)
+        );
 
-                const querySnapshot = await getDocs(q);
-                console.log('📦 Total documentos encontrados:', querySnapshot.docs.length);
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            console.log('📦 Actualización de pedidos. Docs:', snapshot.docs.length);
 
-                const ordersData: Order[] = querySnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    console.log('📄 Pedido ID:', doc.id, 'userId:', data.userId);
-                    return {
-                        id: doc.id,
-                        ...data
-                    } as Order;
-                });
+            const ordersData: Order[] = snapshot.docs.map(doc => {
+                const data = doc.data();
+                // Debug log for every order to trace status
+                console.log(`DETAILS: ID=${doc.id}, Status=${data.status}, Email=${data.customer?.email}`);
+                return {
+                    id: doc.id,
+                    ...data
+                } as Order;
+            });
 
-                // Sort client-side (Newest first)
-                ordersData.sort((a, b) => {
-                    const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-                    const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-                    return timeB - timeA;
-                });
+            // Sort newest first
+            ordersData.sort((a, b) => {
+                const timeA = parseFirestoreDate(a.createdAt)?.getTime() || 0;
+                const timeB = parseFirestoreDate(b.createdAt)?.getTime() || 0;
+                return timeB - timeA;
+            });
 
-                console.log('✅ Pedidos cargados:', ordersData.length);
-                setOrders(ordersData);
-            } catch (error) {
-                console.error("❌ Error fetching orders:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+            setOrders(ordersData);
+            setLoading(false);
+        }, (error) => {
+            console.error("❌ Error en listener de pedidos:", error);
+            showToast('Error al cargar pedidos en tiempo real.', 'error');
+            setLoading(false);
+        });
 
-        fetchOrders();
+        return () => unsubscribe();
     }, [currentUser]);
+    // RE-INJECTING useEffect details is risky if I don't copy exactly.
+    // I'll try to target specific blocks. 
 
     const toggleOrder = (orderId: string) => {
         setExpandedOrder(expandedOrder === orderId ? null : orderId);
     };
 
     const formatDate = (timestamp: any) => {
-        if (!timestamp) return '';
-        const date = timestamp.toDate();
+        const date = parseFirestoreDate(timestamp);
+        if (!date) return '';
         return new Intl.DateTimeFormat('es-CO', {
             dateStyle: 'long',
             timeStyle: 'short'
         }).format(date);
     };
 
+    const handleDeleteOrder = (orderId: string) => {
+        setOrderToDelete(orderId);
+    };
+
+    const confirmDelete = async () => {
+        if (!orderToDelete) return;
+
+        try {
+            await deleteDoc(doc(db, 'orders', orderToDelete));
+            setOrders(prev => prev.filter(o => o.id !== orderToDelete));
+            showToast('Pedido eliminado correctamente', 'success');
+        } catch (error) {
+            console.error("Error elimination order:", error);
+            showToast('Error al eliminar el pedido', 'error');
+        } finally {
+            setOrderToDelete(null);
+        }
+    };
+
+    // Status Helpers
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'pending': return 'text-yellow-500 bg-yellow-500/10';
@@ -88,6 +122,9 @@ const OrdersPage: React.FC = () => {
             case 'shipped': return 'text-purple-500 bg-purple-500/10';
             case 'delivered': return 'text-green-500 bg-green-500/10';
             case 'cancelled': return 'text-red-500 bg-red-500/10';
+            case 'rejected':
+            case 'declined':
+            case 'error': return 'text-red-600 bg-red-600/10';
             default: return 'text-gray-500 bg-gray-500/10';
         }
     };
@@ -99,7 +136,72 @@ const OrdersPage: React.FC = () => {
             case 'shipped': return 'Enviado';
             case 'delivered': return 'Entregado';
             case 'cancelled': return 'Cancelado';
+            case 'rejected': return 'Rechazado';
+            case 'declined': return 'Rechazado';
+            case 'error': return 'Error Pago';
             default: return status;
+        }
+    };
+
+    const handleRetryPayment = async (order: Order) => {
+        setRetryingPaymentId(order.id);
+        try {
+            await loadWompiScript();
+            const amountInCents = Math.round(order.total * 100);
+            const currency = 'COP';
+            // Unique ref for retry
+            const reference = `${order.id}-${Date.now().toString().slice(-6)}`;
+            const integritySignature = await generateSignature(reference, amountInCents, currency, WOMPI_INTEGRITY_SECRET);
+
+            // Clean phone logic
+            const cleanPhone = (order.customer.phone || '').replace(/\D/g, '').slice(-10);
+
+            const checkoutConfig: WompiWidgetConfig = {
+                currency,
+                amountInCents,
+                reference,
+                publicKey: WOMPI_PUBLIC_KEY,
+                signature: { integrity: integritySignature },
+                redirectUrl: 'https://rostrodorado-clinic.web.app/mis-pedidos',
+                customerData: {
+                    email: order.customer.email,
+                    fullName: order.customer.name || `${order.customer.firstName} ${order.customer.lastName}`,
+                    phoneNumber: cleanPhone,
+                    phoneNumberPrefix: '+57',
+                    legalId: order.customer.identification || '',
+                    legalIdType: 'CC'
+                },
+                shippingAddress: {
+                    addressLine1: order.customer.address,
+                    city: order.customer.city,
+                    phoneNumber: order.customer.phone || '',
+                    region: order.customer.department,
+                    country: 'CO'
+                }
+            };
+
+            // @ts-ignore
+            const checkout = new WidgetCheckout(checkoutConfig);
+
+            checkout.open(async (result: any) => {
+                const transaction = result.transaction;
+                if (transaction.status === 'APPROVED') {
+                    // Update Local State
+                    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'processing', paymentStatus: 'approved' } : o));
+                    showToast('¡Pago exitoso!', 'success');
+
+                    // In background update DB
+                    /* This relies on the callback working but since we are client side, we might ideally refresh or update doc */
+                } else if (transaction.status === 'DECLINED' || transaction.status === 'ERROR') {
+                    showToast(transaction.statusMessage || 'Transacción rechazada.', 'error');
+                }
+            });
+
+        } catch (e) {
+            console.error(e);
+            showToast('Error al reintentar pago', 'error');
+        } finally {
+            setRetryingPaymentId(null);
         }
     };
 
@@ -120,7 +222,15 @@ const OrdersPage: React.FC = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
                     <div>
                         <h1 className="font-serif text-4xl text-white mb-2">Mi Perfil</h1>
-                        <p className="text-white/50">Gestiona tus pedidos y direcciones</p>
+                        {currentUser?.displayName ? (
+                            <div className="mb-1">
+                                <p className="text-xl text-gold font-serif">{currentUser.displayName}</p>
+                                <p className="text-white/50 text-sm">{currentUser.email}</p>
+                            </div>
+                        ) : (
+                            <p className="text-xl text-gold font-serif mb-1">{currentUser?.email}</p>
+                        )}
+                        <p className="text-white/50 text-xs">Gestiona tus pedidos y direcciones</p>
                     </div>
 
                     <button
@@ -170,6 +280,31 @@ const OrdersPage: React.FC = () => {
                                                     PAGADO
                                                 </span>
                                             )}
+                                            {(order.status === 'pending' || order.status === 'rejected' || order.status === 'declined' || order.status === 'error') && order.paymentStatus !== 'approved' && (
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleRetryPayment(order);
+                                                        }}
+                                                        disabled={retryingPaymentId === order.id}
+                                                        className="text-xs px-4 py-1.5 rounded-full uppercase tracking-wider font-bold bg-gold text-black hover:bg-white transition-colors disabled:opacity-50"
+                                                    >
+                                                        {retryingPaymentId === order.id ? '...' : 'Pagar Ahora'}
+                                                    </button>
+
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteOrder(order.id);
+                                                        }}
+                                                        className="p-1.5 text-white/30 hover:text-red-500 transition-colors"
+                                                        title="Eliminar pedido"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-2 text-white/50 text-sm">
                                             <Calendar size={14} />
@@ -218,17 +353,29 @@ const OrdersPage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {/* Chat Button */}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setChatOrder(order);
-                                            }}
-                                            className="mt-6 flex items-center gap-2 px-4 py-2 bg-gold/20 hover:bg-gold/30 text-gold rounded-lg transition-colors border border-gold/30"
-                                        >
-                                            <MessageCircle size={18} />
-                                            <span className="text-sm font-bold uppercase tracking-wider">¿Tienes dudas? Escríbenos</span>
-                                        </button>
+                                        <div className="flex gap-3 mt-6">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setChatOrder(order);
+                                                }}
+                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gold/20 hover:bg-gold/30 text-gold rounded-lg transition-colors border border-gold/30"
+                                            >
+                                                <MessageCircle size={18} />
+                                                <span className="text-sm font-bold uppercase tracking-wider">Chat / Ayuda</span>
+                                            </button>
+
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setInvoiceOrder(order);
+                                                }}
+                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors border border-white/10"
+                                            >
+                                                <FileText size={18} />
+                                                <span className="text-sm font-bold uppercase tracking-wider">Ver Recibo</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </motion.div>
@@ -249,17 +396,21 @@ const OrdersPage: React.FC = () => {
                             exit={{ opacity: 0, scale: 0.95 }}
                             className="bg-[#0a0a0a] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative shadow-2xl"
                         >
-                            <button
-                                onClick={() => setShowAddressModal(false)}
-                                className="absolute top-4 right-4 text-white/50 hover:text-white z-10"
-                            >
-                                <X size={24} />
-                            </button>
                             <div className="p-2">
                                 <AddressBook isModal={true} onClose={() => setShowAddressModal(false)} />
                             </div>
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* Invoice Modal */}
+            <AnimatePresence>
+                {invoiceOrder && (
+                    <InvoiceModal
+                        order={invoiceOrder}
+                        onClose={() => setInvoiceOrder(null)}
+                    />
                 )}
             </AnimatePresence>
 
@@ -272,6 +423,40 @@ const OrdersPage: React.FC = () => {
                     isAdmin={false}
                 />
             )}
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {orderToDelete && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-[#1a1a1a] border border-white/10 rounded-2xl w-full max-w-sm p-6 relative shadow-2xl"
+                        >
+                            <h3 className="text-xl font-serif text-white mb-2">Eliminar Pedido</h3>
+                            <p className="text-white/60 text-sm mb-6">
+                                ¿Estás seguro de que deseas eliminar este pedido? Esta acción no se puede deshacer.
+                            </p>
+
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    onClick={() => setOrderToDelete(null)}
+                                    className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg text-sm font-bold transition-all"
+                                >
+                                    Eliminar
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

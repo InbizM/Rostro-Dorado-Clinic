@@ -10,6 +10,7 @@ import { Product } from '../types';
 import { useCart } from '../context/CartContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import Loader from './Loader';
 
 const ProductDetailsPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -49,11 +50,8 @@ const ProductDetailsPage: React.FC = () => {
 
     if (loading || !product) {
         return (
-            <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-                <div className="animate-pulse flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gold/20"></div>
-                    <p className="text-white/30 text-sm">Cargando producto...</p>
-                </div>
+            <div className="min-h-screen bg-[#f9f8f6] flex items-center justify-center">
+                <Loader className="text-gold" size={120} />
             </div>
         );
     }
@@ -67,16 +65,16 @@ const ProductDetailsPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] selection:bg-gold selection:text-white flex flex-col">
+        <div className="min-h-screen bg-[#f9f8f6] selection:bg-gold selection:text-white flex flex-col">
             <Navbar />
 
             <main className="flex-grow pt-20">
                 {/* Back Button - Sticky */}
-                <div className="sticky top-[72px] z-30 bg-gradient-to-b from-[#0a0a0a] via-[#0a0a0a]/90 to-transparent pb-4 -mx-4 md:mx-0 px-4 md:px-0">
+                <div className="sticky top-[72px] z-30 bg-gradient-to-b from-[#f9f8f6] via-[#f9f8f6]/90 to-transparent pb-4 -mx-4 md:mx-0 px-4 md:px-0">
                     <div className="max-w-6xl mx-auto px-4">
                         <button
                             onClick={() => navigate('/productos')}
-                            className="flex items-center gap-2 text-white/40 hover:text-gold transition-colors text-xs uppercase tracking-widest py-3"
+                            className="flex items-center gap-2 text-gray-400 hover:text-gold transition-colors text-xs uppercase tracking-widest py-3"
                         >
                             <ArrowLeft size={14} />
                             Catálogo
@@ -95,7 +93,7 @@ const ProductDetailsPage: React.FC = () => {
                             className="lg:col-span-5"
                         >
                             {/* Main Image */}
-                            <div className="relative rounded-2xl overflow-hidden aspect-square bg-gradient-to-br from-white/5 to-white/0 border border-white/10">
+                            <div className="relative rounded-2xl overflow-hidden aspect-square bg-white border border-gray-100 shadow-sm">
                                 {activeMedia?.type === 'video' ? (
                                     <video
                                         src={activeMedia.url}
@@ -114,8 +112,8 @@ const ProductDetailsPage: React.FC = () => {
                                 {/* Stock Badge */}
                                 {product.stock !== undefined && (
                                     <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md ${product.stock > 0
-                                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                        ? 'bg-green-500/20 text-green-600 border border-green-500/30'
+                                        : 'bg-red-500/20 text-red-500 border border-red-500/30'
                                         }`}>
                                         {product.stock > 0 ? `${product.stock} disponibles` : 'Agotado'}
                                     </div>
@@ -129,7 +127,7 @@ const ProductDetailsPage: React.FC = () => {
                                         onClick={() => setActiveMedia({ type: 'image', url: product.image })}
                                         className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${activeMedia?.url === product.image
                                             ? 'border-gold shadow-[0_0_10px_rgba(212,175,55,0.3)]'
-                                            : 'border-white/10 opacity-60 hover:opacity-100'
+                                            : 'border-gray-200 opacity-60 hover:opacity-100'
                                             }`}
                                     >
                                         <img src={product.image} className="w-full h-full object-cover" />
@@ -140,12 +138,12 @@ const ProductDetailsPage: React.FC = () => {
                                             onClick={() => setActiveMedia(item)}
                                             className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${activeMedia?.url === item.url
                                                 ? 'border-gold shadow-[0_0_10px_rgba(212,175,55,0.3)]'
-                                                : 'border-white/10 opacity-60 hover:opacity-100'
+                                                : 'border-gray-200 opacity-60 hover:opacity-100'
                                                 }`}
                                         >
                                             {item.type === 'video' ? (
-                                                <div className="w-full h-full bg-black/50 flex items-center justify-center">
-                                                    <Play size={18} className="text-white" />
+                                                <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                                                    <Play size={18} className="text-gray-500" />
                                                 </div>
                                             ) : (
                                                 <img src={item.url} className="w-full h-full object-cover" />
@@ -170,29 +168,29 @@ const ProductDetailsPage: React.FC = () => {
 
                             {/* Title & Rating */}
                             <div>
-                                <h1 className="font-serif text-2xl md:text-3xl text-white leading-tight mb-2">
+                                <h1 className="font-serif text-2xl md:text-3xl text-black leading-tight mb-2">
                                     {product.name}
                                 </h1>
                                 <div className="flex items-center gap-1 text-gold">
                                     {[...Array(5)].map((_, i) => (
                                         <Star key={i} size={12} fill="currentColor" />
                                     ))}
-                                    <span className="text-white/30 text-xs ml-1">(5.0)</span>
+                                    <span className="text-gray-400 text-xs ml-1">(5.0)</span>
                                 </div>
                             </div>
 
                             {/* Price Card */}
-                            <div className="bg-gradient-to-r from-gold/10 to-gold/5 border border-gold/20 rounded-xl p-4 flex items-center justify-between">
+                            <div className="bg-white border border-gold/30 rounded-xl p-4 flex items-center justify-between shadow-sm">
                                 <div>
-                                    <p className="text-white/40 text-[10px] uppercase tracking-wider mb-1">Precio</p>
+                                    <p className="text-gray-400 text-[10px] uppercase tracking-wider mb-1">Precio</p>
                                     <p className="text-3xl font-serif text-gold">${product.price.toLocaleString()}</p>
                                 </div>
                                 <button
                                     onClick={handleBuy}
                                     disabled={!product.stock || product.stock <= 0}
                                     className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold uppercase tracking-wider text-sm transition-all ${!product.stock || product.stock <= 0
-                                        ? 'bg-white/10 text-white/30 cursor-not-allowed'
-                                        : 'bg-gold text-black hover:bg-white hover:shadow-[0_0_20px_rgba(212,175,55,0.4)]'
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-gold text-black hover:bg-white border border-gold hover:shadow-lg'
                                         }`}
                                 >
                                     <ShoppingBag size={16} />
@@ -201,7 +199,7 @@ const ProductDetailsPage: React.FC = () => {
                             </div>
 
                             {/* Short Description */}
-                            <p className="text-white/60 text-sm leading-relaxed">
+                            <p className="text-gray-600 text-sm leading-relaxed">
                                 {product.description}
                             </p>
 
@@ -209,18 +207,18 @@ const ProductDetailsPage: React.FC = () => {
                             <div className="space-y-2 pt-2">
                                 {/* Benefits Section */}
                                 {product.benefits && product.benefits.length > 0 && (
-                                    <div className="border border-white/10 rounded-xl overflow-hidden">
+                                    <div className="border border-gray-200 rounded-xl overflow-hidden">
                                         <button
                                             onClick={() => toggleSection('benefits')}
-                                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+                                            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <Sparkles size={16} className="text-gold" />
-                                                <span className="text-white text-sm font-medium">Beneficios</span>
+                                                <span className="text-black text-sm font-medium">Beneficios</span>
                                             </div>
                                             <ChevronDown
                                                 size={16}
-                                                className={`text-white/40 transition-transform ${openSection === 'benefits' ? 'rotate-180' : ''}`}
+                                                className={`text-gray-400 transition-transform ${openSection === 'benefits' ? 'rotate-180' : ''}`}
                                             />
                                         </button>
                                         <AnimatePresence>
@@ -234,7 +232,7 @@ const ProductDetailsPage: React.FC = () => {
                                                 >
                                                     <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 gap-2">
                                                         {product.benefits.map((benefit, i) => (
-                                                            <div key={i} className="flex items-start gap-2 text-white/70 text-xs">
+                                                            <div key={i} className="flex items-start gap-2 text-gray-600 text-xs">
                                                                 <Check size={12} className="text-gold mt-0.5 shrink-0" />
                                                                 <span>{benefit}</span>
                                                             </div>
@@ -248,18 +246,18 @@ const ProductDetailsPage: React.FC = () => {
 
                                 {/* Ingredients Section */}
                                 {product.ingredients && product.ingredients.length > 0 && (
-                                    <div className="border border-white/10 rounded-xl overflow-hidden">
+                                    <div className="border border-gray-200 rounded-xl overflow-hidden">
                                         <button
                                             onClick={() => toggleSection('ingredients')}
-                                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+                                            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <Droplets size={16} className="text-gold" />
-                                                <span className="text-white text-sm font-medium">Ingredientes Clave</span>
+                                                <span className="text-black text-sm font-medium">Ingredientes Clave</span>
                                             </div>
                                             <ChevronDown
                                                 size={16}
-                                                className={`text-white/40 transition-transform ${openSection === 'ingredients' ? 'rotate-180' : ''}`}
+                                                className={`text-gray-400 transition-transform ${openSection === 'ingredients' ? 'rotate-180' : ''}`}
                                             />
                                         </button>
                                         <AnimatePresence>
@@ -275,7 +273,7 @@ const ProductDetailsPage: React.FC = () => {
                                                         {product.ingredients.map((ing, i) => (
                                                             <span
                                                                 key={i}
-                                                                className="bg-white/5 border border-white/10 px-3 py-1 rounded-full text-white/60 text-[11px]"
+                                                                className="bg-white border border-gray-200 px-3 py-1 rounded-full text-gray-600 text-[11px]"
                                                             >
                                                                 {ing}
                                                             </span>
@@ -289,18 +287,18 @@ const ProductDetailsPage: React.FC = () => {
 
                                 {/* Usage Section */}
                                 {product.usage && (
-                                    <div className="border border-white/10 rounded-xl overflow-hidden">
+                                    <div className="border border-gray-200 rounded-xl overflow-hidden">
                                         <button
                                             onClick={() => toggleSection('usage')}
-                                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+                                            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <Info size={16} className="text-gold" />
-                                                <span className="text-white text-sm font-medium">Modo de Uso</span>
+                                                <span className="text-black text-sm font-medium">Modo de Uso</span>
                                             </div>
                                             <ChevronDown
                                                 size={16}
-                                                className={`text-white/40 transition-transform ${openSection === 'usage' ? 'rotate-180' : ''}`}
+                                                className={`text-gray-400 transition-transform ${openSection === 'usage' ? 'rotate-180' : ''}`}
                                             />
                                         </button>
                                         <AnimatePresence>
@@ -313,7 +311,7 @@ const ProductDetailsPage: React.FC = () => {
                                                     className="overflow-hidden"
                                                 >
                                                     <div className="px-4 pb-4">
-                                                        <p className="text-white/60 text-xs leading-relaxed whitespace-pre-line">
+                                                        <p className="text-gray-600 text-xs leading-relaxed whitespace-pre-line">
                                                             {product.usage}
                                                         </p>
                                                     </div>
@@ -325,18 +323,18 @@ const ProductDetailsPage: React.FC = () => {
 
                                 {/* Long Description Section */}
                                 {product.longDescription && (
-                                    <div className="border border-white/10 rounded-xl overflow-hidden">
+                                    <div className="border border-gray-200 rounded-xl overflow-hidden">
                                         <button
                                             onClick={() => toggleSection('details')}
-                                            className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+                                            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <Info size={16} className="text-gold" />
-                                                <span className="text-white text-sm font-medium">Descripción Completa</span>
+                                                <span className="text-black text-sm font-medium">Descripción Completa</span>
                                             </div>
                                             <ChevronDown
                                                 size={16}
-                                                className={`text-white/40 transition-transform ${openSection === 'details' ? 'rotate-180' : ''}`}
+                                                className={`text-gray-400 transition-transform ${openSection === 'details' ? 'rotate-180' : ''}`}
                                             />
                                         </button>
                                         <AnimatePresence>
@@ -349,7 +347,7 @@ const ProductDetailsPage: React.FC = () => {
                                                     className="overflow-hidden"
                                                 >
                                                     <div className="px-4 pb-4">
-                                                        <p className="text-white/60 text-xs leading-relaxed whitespace-pre-line">
+                                                        <p className="text-gray-600 text-xs leading-relaxed whitespace-pre-line">
                                                             {product.longDescription}
                                                         </p>
                                                     </div>

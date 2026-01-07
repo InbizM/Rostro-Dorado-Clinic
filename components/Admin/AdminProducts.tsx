@@ -234,7 +234,12 @@ const AdminProducts: React.FC = () => {
 
     const startEdit = (product: Product) => {
         setEditingProduct(product);
-        setFormData(product);
+        // Ensure basePrice is populated. If it's a legacy product without basePrice, derive it from price.
+        const effectiveBasePrice = product.basePrice !== undefined
+            ? product.basePrice
+            : Math.round(product.price * 0.968465 - 833);
+
+        setFormData({ ...product, basePrice: effectiveBasePrice });
 
         // Try to reconstruct selectors from category path string if possible
         // Ideally we would need to search the tree, but for now we just load the form data
@@ -257,7 +262,8 @@ const AdminProducts: React.FC = () => {
             usage: '',
             benefits: [],
             costPrice: 0,
-            stock: 0
+            stock: 0,
+            basePrice: 0
         });
         setSelectedRoot('');
         setSelectedSub('');
@@ -463,28 +469,30 @@ const AdminProducts: React.FC = () => {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-xs uppercase tracking-widest text-gold font-bold">Tu Ganancia Neta *</label>
+                                            <label className="text-xs uppercase tracking-widest text-gold font-bold">Precio al Público (Base) *</label>
                                             <div className="relative">
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gold">$</span>
                                                 <input
                                                     required
                                                     type="number"
                                                     min="0"
-                                                    value={formData.price ? Math.round((formData.price * 0.968465 - 833)) : ''}
+                                                    value={formData.basePrice || ''}
                                                     onChange={(e) => {
-                                                        const netInput = Number(e.target.value);
-                                                        if (netInput > 0) {
-                                                            const publicPrice = Math.ceil((netInput + 833) / 0.968465);
-                                                            setFormData({ ...formData, price: publicPrice });
-                                                        } else {
-                                                            setFormData({ ...formData, price: 0 });
-                                                        }
+                                                        const baseInput = Number(e.target.value);
+                                                        // Calculate Final Price: (Base + Fixed) / (1 - Rate)
+                                                        const finalPrice = Math.ceil((baseInput + 833) / 0.968465);
+
+                                                        setFormData({
+                                                            ...formData,
+                                                            basePrice: baseInput,
+                                                            price: baseInput > 0 ? finalPrice : 0
+                                                        });
                                                     }}
                                                     className="w-full bg-gold/10 border border-gold/30 p-3 pl-8 rounded-lg text-gold focus:border-gold outline-none font-bold placeholder-gold/30 focus:bg-gold/20 transition-colors"
                                                     placeholder="0"
                                                 />
                                             </div>
-                                            <p className="text-[10px] text-gold/60 h-8">Valor limpio que recibirás</p>
+                                            <p className="text-[10px] text-gold/60 h-8">Valor que deseas recibir (antes de Wompi)</p>
                                         </div>
                                     </div>
 
@@ -493,34 +501,34 @@ const AdminProducts: React.FC = () => {
                                         <div className="flex justify-between items-center mb-6">
                                             <label className="text-xs uppercase tracking-widest text-white/60 flex items-center gap-2">
                                                 <Settings size={14} />
-                                                Desglose de Precio
+                                                Resultado Final
                                             </label>
                                             <span className="text-[10px] text-white/30 uppercase border border-white/10 px-2 py-1 rounded">Cálculo Automático</span>
                                         </div>
 
                                         <div className="grid md:grid-cols-3 gap-4">
-                                            {/* Public Price */}
-                                            <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex flex-col justify-between">
+                                            {/* Final Public Price */}
+                                            <div className="bg-green-500/10 p-4 rounded-lg border border-green-500/20 flex flex-col justify-between">
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <p className="text-[10px] text-white/40 uppercase tracking-wider">Precio en Tienda</p>
-                                                    <span className="text-[10px] bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded">Público</span>
+                                                    <p className="text-[10px] text-green-400 uppercase tracking-wider">Precio Final</p>
+                                                    <span className="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">En Tienda</span>
                                                 </div>
                                                 <p className="text-2xl text-white font-mono font-bold">
                                                     ${formData.price ? formData.price.toLocaleString() : '0'}
                                                 </p>
-                                                <p className="text-[10px] text-white/30 mt-1">Precio Final (Incluye Wompi)</p>
+                                                <p className="text-[10px] text-white/30 mt-1">Lo que paga el cliente</p>
                                             </div>
 
                                             {/* Commission */}
                                             <div className="bg-white/5 p-4 rounded-lg border border-white/5 flex flex-col justify-between">
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <p className="text-[10px] text-white/40 uppercase tracking-wider">Comisión Wompi</p>
+                                                    <p className="text-[10px] text-white/40 uppercase tracking-wider">Recargo Wompi</p>
                                                     <span className="text-[10px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded">Tarifa</span>
                                                 </div>
                                                 <p className="text-xl text-white/60 font-mono">
-                                                    - ${formData.price ? Math.round(formData.price - (formData.price * 0.968465 - 833)).toLocaleString() : '0'}
+                                                    + ${formData.price ? Math.round(formData.price - (formData.price * 0.968465 - 833)).toLocaleString() : '0'}
                                                 </p>
-                                                <p className="text-[10px] text-white/20 mt-1">Se descuenta del cobro</p>
+                                                <p className="text-[10px] text-white/20 mt-1">Se suma al precio base</p>
                                             </div>
 
                                             {/* Profit */}
@@ -532,7 +540,7 @@ const AdminProducts: React.FC = () => {
                                                 <p className="text-2xl text-gold font-bold">
                                                     ${formData.price ? Math.round((formData.price * 0.968465 - 833) - (formData.costPrice || 0)).toLocaleString() : '0'}
                                                 </p>
-                                                <p className="text-[10px] text-gold/40 mt-1">Ingreso - Costo</p>
+                                                <p className="text-[10px] text-gold/40 mt-1">Precio Base - Costo</p>
                                             </div>
                                         </div>
                                     </div>
@@ -678,8 +686,8 @@ const AdminProducts: React.FC = () => {
                                         type="submit"
                                         disabled={isSubmitting}
                                         className={`flex-1 font-bold uppercase tracking-widest px-8 py-3 rounded-xl transition-colors ${isSubmitting
-                                                ? 'bg-white/20 text-white/50 cursor-not-allowed'
-                                                : 'bg-gold text-black hover:bg-white'
+                                            ? 'bg-white/20 text-white/50 cursor-not-allowed'
+                                            : 'bg-gold text-black hover:bg-white'
                                             }`}
                                     >
                                         {isSubmitting ? 'Guardando...' : (editingProduct ? 'Actualizar' : 'Crear Producto')}
