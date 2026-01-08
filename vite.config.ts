@@ -9,11 +9,11 @@ export default defineConfig({
     host: true, 
     port: 3000,
     // Permite que el servidor responda a estos dominios
-    allowedHosts: ['rostrodorado.site', 'www.rostrodorado.site', 'localhost']
+    allowedHosts: ['rostrodorado.site', 'www.rostrodorado.site', 'rostrodorado.com', 'www.rostrodorado.com', 'localhost']
   },
   preview: {
     host: true,
     port: 3000,
-    allowedHosts: ['rostrodorado.site', 'www.rostrodorado.site', 'localhost']
+    allowedHosts: ['rostrodorado.site', 'www.rostrodorado.site', 'rostrodorado.com', 'www.rostrodorado.com', 'localhost']
   }
 });

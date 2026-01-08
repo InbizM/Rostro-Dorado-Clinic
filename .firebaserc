@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "rostrodorado-80279"
+  },
   "targets": {},
   "etags": {}
 }

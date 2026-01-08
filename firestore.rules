@@ -59,6 +59,12 @@ service cloud.firestore {
         allow read, write: if isAuthenticated(); // Refine if possible to order owner
     }
 
+    // Coupons: Public read (for validation), Admin write
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // OTP Codes: Backend Only (Cloud Functions) - No Client Access
     match /otp_codes/{email} {
       allow read, write: if false;

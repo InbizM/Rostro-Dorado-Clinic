@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CheckCircle, ShoppingBag, MapPin, Plus, X } from 'lucide-react'; // Removing Loader, using custom spinner or simple text
+import { ArrowLeft, CheckCircle, ShoppingBag, MapPin, Plus, X, Tag } from 'lucide-react'; // Removing Loader, using custom spinner or simple text
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import Navbar from '../Layout/Navbar';
@@ -24,7 +24,9 @@ import {
 import { showToast } from '../../components/ToastContainer';
 
 const CheckoutPage: React.FC = () => {
-    const { cart, cartTotal, clearCart, toggleCart, cartCount } = useCart();
+    const { cart, cartTotal, clearCart, toggleCart, cartCount, applyCoupon, removeCoupon, appliedCoupon, discountAmount, totalWithDiscount } = useCart();
+    const [couponCode, setCouponCode] = useState('');
+    const [couponLoading, setCouponLoading] = useState(false);
     const { currentUser } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
@@ -164,10 +166,12 @@ const CheckoutPage: React.FC = () => {
                     name: `${formData.firstName} ${formData.lastName}`.trim()
                 },
                 items: cart,
-                total: cartTotal,
+                total: appliedCoupon ? totalWithDiscount : cartTotal, // Use discounted total
                 status: 'pending',
                 updatedAt: serverTimestamp(), // Track updates
-                paymentMethod: 'wompi'
+                paymentMethod: 'wompi',
+                couponCode: appliedCoupon?.code || null,
+                discountApplied: discountAmount || 0,
             };
 
             let orderId = currentOrderId;
@@ -189,7 +193,8 @@ const CheckoutPage: React.FC = () => {
             }
 
             // 2. Prepare Wompi Data
-            const amountInCents = Math.round(cartTotal * 100);
+            const finalTotal = appliedCoupon ? totalWithDiscount : cartTotal;
+            const amountInCents = Math.round(finalTotal * 100);
             const currency = 'COP';
             // Use unique reference for Wompi transaction attempt (Order ID + Timestamp)
             const reference = `${orderId}-${Date.now().toString().slice(-6)}`;
@@ -678,11 +683,63 @@ const CheckoutPage: React.FC = () => {
                         ))}
                     </div>
 
-                    <div className="border-t border-gray-200 pt-6 space-y-3 text-sm text-gray-600">
+                    {/* Coupon Input */}
+                    <div className="mb-6 pb-6 border-b border-gray-200">
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={couponCode}
+                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                placeholder="Código de descuento"
+                                disabled={!!appliedCoupon}
+                                className="flex-1 border border-gray-300 rounded p-2 text-sm focus:border-black outline-none uppercase font-mono disabled:bg-gray-100 disabled:text-gray-400"
+                            />
+                            {appliedCoupon ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        removeCoupon();
+                                        setCouponCode('');
+                                    }}
+                                    className="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300 transition-colors"
+                                >
+                                    Quitar
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        if (!couponCode) return;
+                                        setCouponLoading(true);
+                                        await applyCoupon(couponCode);
+                                        setCouponLoading(false);
+                                    }}
+                                    disabled={couponLoading || !couponCode}
+                                    className="bg-black text-white px-4 py-2 rounded text-sm hover:bg-gray-800 transition-colors disabled:opacity-50"
+                                >
+                                    {couponLoading ? '...' : 'Aplicar'}
+                                </button>
+                            )}
+                        </div>
+                        {appliedCoupon && (
+                            <div className="mt-2 flex items-center gap-2 text-sm text-green-600 bg-green-50 p-2 rounded">
+                                <Tag size={16} />
+                                <span>Cupón <strong>{appliedCoupon.code}</strong> aplicado</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="space-y-3 text-sm text-gray-600">
                         <div className="flex justify-between">
                             <span>Subtotal • {cart.reduce((ack, item) => ack + item.quantity, 0)} artículos</span>
                             <span className="font-bold text-gray-800">${cartTotal.toLocaleString()}</span>
                         </div>
+                        {appliedCoupon && (
+                            <div className="flex justify-between text-green-600">
+                                <span>Descuento ({appliedCoupon.code})</span>
+                                <span className="font-bold">-${discountAmount.toLocaleString()}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between">
                             <span>Envío</span>
                             <span className="text-gray-800">GRATIS</span>
@@ -693,7 +750,7 @@ const CheckoutPage: React.FC = () => {
                         <span className="text-xl font-medium text-gray-800">Total</span>
                         <div className="flex items-baseline gap-2">
                             <span className="text-xs text-gray-500">COP</span>
-                            <span className="text-3xl font-bold text-black">${cartTotal.toLocaleString()}</span>
+                            <span className="text-3xl font-bold text-black">${(appliedCoupon ? totalWithDiscount : cartTotal).toLocaleString()}</span>
                         </div>
                     </div>
 

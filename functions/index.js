@@ -515,51 +515,111 @@ exports.sendOrderConfirmation = functions.firestore
         sendSmtpEmail.sender = { "name": "Rostro Dorado Clinic", "email": "no-reply@rostrodorado.com" };
         sendSmtpEmail.to = [{ "email": email, "name": name }];
 
-        // Modern HTML Template
         sendSmtpEmail.htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body { font-family: 'Helvetica', sans-serif; background-color: #f9f9f9; padding: 20px; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-                .header { background-color: #000; color: #d4af37; padding: 30px; text-align: center; }
-                .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
-                .content { padding: 40px 30px; }
-                .greeting { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
-                .message { line-height: 1.6; margin-bottom: 30px; color: #555; }
-                .btn-container { text-align: center; margin: 30px 0; }
-                .btn { background-color: #000; color: #d4af37; padding: 15px 30px; text-decoration: none; font-weight: bold; border-radius: 5px; text-transform: uppercase; font-size: 14px; }
-                .footer { background-color: #f1f1f1; padding: 20px; text-align: center; font-size: 12px; color: #888; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>Rostro Dorado</h1>
-                </div>
-                <div class="content">
-                    <div class="greeting">Hola ${name},</div>
-                    <div class="message">
-                        ¡Gracias por tu compra! Estamos preparando tu pedido.
-                        <br><br>
-                        Adjunto a este correo encontrarás tu <strong>factura en PDF</strong> con todos los detalles de tu compra.
-                        <br><br>
-                        Pedido: <strong>#${orderId.slice(0, 8).toUpperCase()}</strong>
-                    </div>
-                    
-                    <div class="btn-container">
-                        <a href="https://rostrodorado-clinic.web.app/mis-pedidos" class="btn">Ver mi Pedido</a>
-                    </div>
-                </div>
-                <div class="footer">
-                    <p>Rostro Dorado Clinic - Riohacha, La Guajira</p>
-                    <p>Si tienes alguna duda, contáctanos.</p>
-                </div>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmación de Pedido</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@300;400;500;600&display=swap');
+
+    body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Montserrat', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    
+    /* Layout */
+    .wrapper { background-color: #f4f4f4; padding: 40px 20px; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+    
+    /* Header */
+    .header { background-color: #0a0a0a; padding: 40px 20px; text-align: center; border-bottom: 3px solid #C6A87C; }
+    .logo-text { color: #C6A87C; font-family: 'Playfair Display', serif; font-size: 28px; letter-spacing: 2px; margin: 0; text-transform: uppercase; }
+    .subtitle { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 4px; margin-top: 5px; }
+
+    /* Content */
+    .content { padding: 50px 40px; color: #333333; text-align: center; }
+    .icon-check { width: 60px; height: 60px; background-color: #f9f6f1; border-radius: 50%; color: #C6A87C; line-height: 60px; font-size: 30px; margin: 0 auto 30px auto; border: 1px solid #C6A87C; }
+    
+    h1 { font-family: 'Playfair Display', serif; font-size: 24px; color: #111; margin: 0 0 10px 0; }
+    p { font-size: 14px; line-height: 1.6; color: #555; margin-bottom: 20px; }
+    
+    /* Order Details Box */
+    .order-box { background-color: #fafafa; border: 1px solid #eee; padding: 20px; border-radius: 6px; margin: 30px 0; text-align: left; }
+    .order-header { font-size: 12px; text-transform: uppercase; color: #888; letter-spacing: 1px; margin-bottom: 5px; }
+    .order-number { font-family: 'Playfair Display', serif; font-size: 20px; color: #C6A87C; font-weight: 700; }
+    
+    /* Invoice Notification */
+    .invoice-note { background-color: #fff8eb; border-left: 4px solid #C6A87C; padding: 15px; text-align: left; font-size: 13px; color: #856404; margin-bottom: 30px; }
+    
+    /* Button */
+    .btn { display: inline-block; background-color: #000; color: #C6A87C; padding: 16px 35px; text-decoration: none; font-weight: 600; border-radius: 4px; text-transform: uppercase; font-size: 12px; letter-spacing: 1.5px; transition: all 0.3s ease; }
+    .btn:hover { background-color: #C6A87C; color: #000; }
+    
+    /* Footer */
+    .footer { background-color: #111; padding: 30px; text-align: center; border-top: 1px solid #222; }
+    .footer p { color: #666; font-size: 11px; margin: 5px 0; }
+    .social-links { margin-bottom: 20px; }
+    .social-links a { color: #C6A87C; text-decoration: none; margin: 0 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+
+    @media only screen and (max-width: 600px) {
+      .content { padding: 30px 20px; }
+      .header { padding: 30px 15px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td align="center">
+          <div class="container">
+            <!-- Header -->
+            <div class="header">
+               <h2 class="logo-text">Rostro Dorado</h2>
+               <div class="subtitle">Clinic & Spa</div>
             </div>
-        </body>
-        </html>
-        `;
+            
+            <!-- Content -->
+            <div class="content">
+              <div class="icon-check">✓</div>
+              
+              <h1>¡Gracias, ${name.split(' ')[0]}!</h1>
+              <p>Hemos recibido tu pedido correctamente. Tu confianza es nuestro mayor tesoro.</p>
+              
+              <div class="order-box">
+                <div class="order-header">Tu número de pedido</div>
+                <div class="order-number">#${orderId.slice(0, 8).toUpperCase()}</div>
+              </div>
+
+              <!-- Invoice Alert -->
+              <div class="invoice-note">
+                <strong>🧾 Factura Disponible:</strong><br>
+                Hemos adjuntado tu factura electrónica oficial a este correo en formato PDF. Puedes descargarla y guardarla para tus registros.
+              </div>
+              
+              <p>Estamos preparando cuidadosamente tus productos. Te notificaremos apenas sean enviados.</p>
+              
+              <a href="https://rostrodorado-clinic.web.app/mis-pedidos" class="btn">Seguir mi Pedido</a>
+            </div>
+            
+            <!-- Footer -->
+            <div class="footer">
+              <div class="social-links">
+                <a href="https://www.instagram.com/rostrodoradoclinic/">Instagram</a>
+                <a href="https://www.facebook.com/people/Dra-Isaura-Dorado/100067023886893/">Facebook</a>
+              </div>
+              <p>Rostro Dorado Clinic • Calle 12 #12-03 local 2 • Riohacha, La Guajira</p>
+              <p>&copy; ${new Date().getFullYear()} Todos los derechos reservados.</p>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>
+`;
 
         sendSmtpEmail.attachment = [
           {
@@ -638,37 +698,56 @@ exports.downloadInvoicePdf = functions.https.onCall(async (data, context) => {
  * Generates an XML feed for Facebook/Instagram/WhatsApp Catalog.
  * URL: https://us-central1-rostrodorado-80279.cloudfunctions.net/facebookProductFeed
  */
+// Helper to map internal categories to Google Taxonomy
+function getGoogleCategory(categoryName) {
+  const mapping = {
+    'Cuidado Facial': 'Health & Beauty > Personal Care > Cosmetics > Skin Care',
+    'Cuidado Corporal': 'Health & Beauty > Personal Care > Cosmetics > Bath & Body',
+    'Protección Solar': 'Health & Beauty > Personal Care > Cosmetics > Skin Care > Sunscreen',
+    'Capilar': 'Health & Beauty > Personal Care > Hair Care',
+    'Nutrición': 'Health & Beauty > Health Care > Fitness & Nutrition > Vitamins & Supplements'
+  };
+  return mapping[categoryName] || 'Health & Beauty > Personal Care';
+}
+
 exports.facebookProductFeed = functions.https.onRequest(async (req, res) => {
   try {
     const productsSnapshot = await admin.firestore().collection('products').get();
 
-    let xml = `<?xml version="1.0"?>
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">
 <channel>
 <title>Rostro Dorado Clinic Products</title>
-<link>https://rostrodorado-clinic.web.app</link>
+<link>https://rostrodorado.com</link>
 <description>Medical and aesthetic products from Rostro Dorado Clinic</description>
 `;
 
     productsSnapshot.forEach(doc => {
       const p = doc.data();
-      // Facebook/WhatsApp requirements
-      // id, title, description, availability, condition, price, link, image_link, brand
-
       // Availability logic
       const availability = (p.stock && p.stock > 0) ? 'in stock' : 'out of stock';
+
+      // Build Rich Description
+      let richDescription = p.description || p.longDescription || p.name;
+      if (p.benefits) richDescription += `\n\nBeneficios: ${p.benefits}`;
+      if (p.ingredients) richDescription += `\n\nIngredientes Clave: ${p.ingredients}`;
+      if (p.usage) richDescription += `\n\nModo de Uso: ${p.usage}`;
+
+      // Clean HTML tags if any (basic regex)
+      richDescription = richDescription.replace(/<[^>]*>?/gm, '');
 
       xml += `<item>
 <g:id>${doc.id}</g:id>
 <g:title><![CDATA[${p.name}]]></g:title>
-<g:description><![CDATA[${p.description || p.longDescription || p.name}]]></g:description>
-<g:link>https://rostrodorado-clinic.web.app/tienda</g:link>
+<g:description><![CDATA[${richDescription}]]></g:description>
+<g:link>https://rostrodorado.com/productos/${doc.id}</g:link>
 <g:image_link>${p.image}</g:image_link>
 <g:brand>Rostro Dorado</g:brand>
 <g:condition>new</g:condition>
 <g:availability>${availability}</g:availability>
 <g:price>${p.price} COP</g:price>
-<g:google_product_category>Health &amp; Beauty &gt; Personal Care</g:google_product_category>
+<g:google_product_category><![CDATA[${getGoogleCategory(p.category)}]]></g:google_product_category>
+<g:mpn>${doc.id}</g:mpn>
 </item>
 `;
     });

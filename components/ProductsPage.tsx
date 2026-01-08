@@ -3,7 +3,6 @@ import Navbar from './Layout/Navbar';
 import Footer from './Layout/Footer';
 
 import Products from './Products';
-import FloatingWhatsApp from './FloatingWhatsApp';
 import LegalModal from './LegalModal';
 
 const ProductsPage: React.FC = () => {
@@ -22,7 +21,6 @@ const ProductsPage: React.FC = () => {
             </main>
 
             <Footer />
-            <FloatingWhatsApp />
             <LegalModal />
         </div>
     );

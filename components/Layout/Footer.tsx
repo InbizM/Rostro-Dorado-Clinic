@@ -80,6 +80,9 @@ const Footer: React.FC = () => {
                         >
                             Política de Privacidad
                         </button>
+                        <a href="/politica-devoluciones" className="p-3 md:p-2 hover:text-gold transition-colors cursor-hover inline-block">
+                            Política de Devoluciones
+                        </a>
                     </div>
 
                     <p>Diseño Web: Premium Aesthetics</p>

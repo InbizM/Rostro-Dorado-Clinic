@@ -1,5 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Product } from '../types';
+import { Product, Coupon } from '../types';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '../firebase';
+import { showToast } from '../components/ToastContainer';
+
+const toast = {
+    success: (msg: string) => showToast(msg, 'success'),
+    error: (msg: string) => showToast(msg, 'error'),
+    info: (msg: string) => showToast(msg, 'info'),
+};
 
 export interface CartItem extends Product {
     quantity: number;
@@ -15,6 +24,13 @@ interface CartContextType {
     toggleCart: () => void;
     cartTotal: number;
     cartCount: number;
+
+    // Coupon Logic
+    appliedCoupon: Coupon | null;
+    discountAmount: number;
+    totalWithDiscount: number;
+    applyCoupon: (code: string) => Promise<boolean>;
+    removeCoupon: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -26,8 +42,13 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
     const [isCartOpen, setIsCartOpen] = useState(false);
 
+    // Coupon State
+    const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+
     useEffect(() => {
         localStorage.setItem('cart', JSON.stringify(cart));
+        // Reset coupon if cart is empty? Maybe not necessary but good UX
+        if (cart.length === 0) setAppliedCoupon(null);
     }, [cart]);
 
     const addToCart = (product: Product) => {
@@ -56,6 +77,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const clearCart = () => {
         setCart([]);
+        setAppliedCoupon(null);
     };
 
     const toggleCart = () => {
@@ -64,6 +86,68 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const cartTotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
     const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
+
+    // Coupon Functions
+    const applyCoupon = async (code: string): Promise<boolean> => {
+        try {
+            const q = query(
+                collection(db, 'coupons'),
+                where('code', '==', code.toUpperCase()),
+                where('isActive', '==', true)
+            );
+            const snapshot = await getDocs(q);
+
+            if (snapshot.empty) {
+                toast.error('Cupón no válido o expirado');
+                return false;
+            }
+
+            const couponData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Coupon;
+
+            // Advanced Validations
+            if (couponData.expirationDate && new Date(couponData.expirationDate) < new Date()) {
+                toast.error('El cupón ha expirado');
+                return false;
+            }
+
+            if (couponData.usageLimit && couponData.usageCount >= couponData.usageLimit) {
+                toast.error('Este cupón ha alcanzado su límite de uso');
+                return false;
+            }
+
+            if (couponData.minPurchase && cartTotal < couponData.minPurchase) {
+                toast.error(`La compra mínima para este cupón es $${couponData.minPurchase.toLocaleString()}`);
+                return false;
+            }
+
+            setAppliedCoupon(couponData);
+            toast.success(`Cupón ${code} aplicado correctamente`);
+            return true;
+
+        } catch (error) {
+            console.error('Error applying coupon:', error);
+            toast.error('Error al validar el cupón');
+            return false;
+        }
+    };
+
+    const removeCoupon = () => {
+        setAppliedCoupon(null);
+        toast.info('Cupón eliminado');
+    };
+
+    // Calculate Discount
+    let discountAmount = 0;
+    if (appliedCoupon) {
+        if (appliedCoupon.type === 'percentage') {
+            discountAmount = (cartTotal * appliedCoupon.value) / 100;
+        } else {
+            discountAmount = appliedCoupon.value;
+        }
+    }
+    // Prevent negative total
+    const totalWithDiscount = Math.max(0, cartTotal - discountAmount);
+
 
     return (
         <CartContext.Provider
@@ -77,6 +161,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 toggleCart,
                 cartTotal,
                 cartCount,
+                appliedCoupon,
+                discountAmount,
+                totalWithDiscount,
+                applyCoupon,
+                removeCoupon
             }}
         >
             {children}

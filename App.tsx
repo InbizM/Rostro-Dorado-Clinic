@@ -18,6 +18,7 @@ import AdminDashboard from './components/Admin/AdminDashboard'; // Imported
 import OrdersPage from './components/Profile/OrdersPage';
 import ToastContainer from './components/ToastContainer'; // Imported
 import LoginVerifyPage from './components/Auth/LoginVerifyPage'; // Imported
+import ReturnsPolicy from './components/Policies/ReturnsPolicy';
 
 const App: React.FC = () => {
   return (
@@ -48,6 +49,7 @@ const App: React.FC = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/verify-login" element={<LoginVerifyPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/politica-devoluciones" element={<ReturnsPolicy />} />
 
             {/* Redirect old /products to /productos */}
             <Route path="/products" element={<Navigate to="/productos" replace />} />

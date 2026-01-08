@@ -75,7 +75,10 @@ export interface Order {
   updatedAt?: any;
   paymentMethod: string;
   transactionId?: string;
+  couponCode?: string;
+  discountApplied?: number;
 }
+
 
 export interface Payment {
   id: string; // Wompi Transaction ID
@@ -131,3 +134,16 @@ export interface ChatMessage {
   message: string;
   createdAt: any; // Firebase Timestamp
 }
+
+export interface Coupon {
+  id?: string;
+  code: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  expirationDate?: string;
+  isActive: boolean;
+  usageLimit?: number;
+  usageCount: number;
+  minPurchase?: number;
+}
+

@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ShoppingBag, Star, Check, Play, ChevronDown, Sparkles, Droplets, Info } from 'lucide-react';
 import Navbar from './Layout/Navbar';
 import Footer from './Layout/Footer';
-import FloatingWhatsApp from './FloatingWhatsApp';
 import LegalModal from './LegalModal';
 import { Product } from '../types';
 import { useCart } from '../context/CartContext';
@@ -363,7 +362,6 @@ const ProductDetailsPage: React.FC = () => {
             </main>
 
             <Footer />
-            <FloatingWhatsApp />
             <LegalModal />
         </div>
     );
