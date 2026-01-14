@@ -1,6 +1,7 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const SibApiV3Sdk = require("sib-api-v3-sdk");
+
 const cors = require("cors")({ origin: true });
 
 admin.initializeApp({
@@ -406,12 +407,12 @@ const createInvoicePdf = async (order, orderId) => {
 
     // 7. Footer
     doc.fontSize(8).font('Courier-Bold');
-    doc.text('¡GRACIAS POR SU COMPRA!', { align: 'center' });
+    doc.text('¡GRACIAS POR SU COMPRA!', 0, doc.y, { align: 'center', width: 288 });
     doc.moveDown(0.5);
     doc.fontSize(7).font('Courier');
-    doc.text('Comprobante de pago electrónico.', { align: 'center' });
+    doc.text('Comprobante de pago electrónico.', 0, doc.y, { align: 'center', width: 288 });
     doc.moveDown(1);
-    doc.text('ROSTRO DORADO CLINIC', { align: 'center' });
+    doc.text('ROSTRO DORADO CLINIC', 0, doc.y, { align: 'center', width: 288 });
 
     doc.end();
   });
@@ -422,14 +423,56 @@ exports.sendOrderConfirmation = functions.firestore
   .onUpdate(async (change, context) => {
     const newData = change.after.data();
     const previousData = change.before.data();
+    const orderId = context.params.orderId;
+
+    console.log(`[DEBUG] Order Update Detected: ${orderId}`);
+    console.log(`[DEBUG] Status Change: ${previousData.status} -> ${newData.status}`);
 
     // Trigger only when status changes to 'processing' (Approved Payment)
     if (newData.status === 'processing' && previousData.status !== 'processing') {
-      const orderId = context.params.orderId;
       const email = newData.customer.email;
       const name = newData.customer.name;
 
       console.log(`Sending confirmation email for order ${orderId} to ${email}`);
+
+      // --- SHIPPING GENERATION (ENVIOCLICK) ---
+      let trackingInfo = null;
+      try {
+        if (newData.total > 0) {
+          const shipmentResult = await envioclick.createShipment({
+            customer: newData.customer,
+            items: newData.items,
+            total: newData.total,
+            shippingOption: newData.shippingOption
+          });
+
+          if (shipmentResult.success) {
+            console.log("Envioclick Shipment Created:", shipmentResult);
+            trackingInfo = {
+              number: shipmentResult.trackingNumber,
+              url: shipmentResult.labelUrl,
+              carrier: shipmentResult.carrier
+            };
+
+            await change.after.ref.update({
+              trackingNumber: trackingInfo.number,
+              shippingLabelUrl: trackingInfo.url,
+              shippingProvider: shipmentResult.carrier || 'Envioclick',
+              shippingGeneratedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            // --- TODO: NOTIFICATIONS (INACTIVE) ---
+            // Future implementation:
+            // await sendWhatsappNotification(newData.customer.phone, trackingInfo);
+            // await sendTrackingEmail(newData.customer.email, trackingInfo);
+            // --------------------------------------
+          }
+        }
+      } catch (shipError) {
+        console.error("Shipping Generation Failed (Envioclick):", shipError);
+        // Continue to send email anyway
+      }
+      // ---------------------------
 
       try {
         // Generate PDF
@@ -519,104 +562,108 @@ exports.sendOrderConfirmation = functions.firestore
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Confirmación de Pedido</title>
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@300;400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600&display=swap');
+    
+    /* Base Styles */
+    body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Montserrat', Helvetica, Arial, sans-serif; }
+    
+    /* Container */
+    .container { 
+      max-width: 600px; 
+      margin: 40px auto; 
+      background-color: #ffffff; 
+      padding: 60px 40px; 
+      border-radius: 4px; 
+      text-align: center;
+      border-top: 4px solid #C6A87C;
+    }
 
-    body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Montserrat', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
-    table { border-collapse: collapse; width: 100%; }
+    /* Logo */
+    .logo-img { max-height: 80px; width: auto; margin-bottom: 40px; display: block; margin-left: auto; margin-right: auto; }
     
-    /* Layout */
-    .wrapper { background-color: #f4f4f4; padding: 40px 20px; }
-    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+    /* Typography */
+    h1 { font-family: 'Lora', serif; color: #111111; font-size: 24px; margin-bottom: 10px; font-weight: 500; }
+    p { color: #666666; font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
     
-    /* Header */
-    .header { background-color: #0a0a0a; padding: 40px 20px; text-align: center; border-bottom: 3px solid #C6A87C; }
-    .logo-text { color: #C6A87C; font-family: 'Playfair Display', serif; font-size: 28px; letter-spacing: 2px; margin: 0; text-transform: uppercase; }
-    .subtitle { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 4px; margin-top: 5px; }
-
-    /* Content */
-    .content { padding: 50px 40px; color: #333333; text-align: center; }
-    .icon-check { width: 60px; height: 60px; background-color: #f9f6f1; border-radius: 50%; color: #C6A87C; line-height: 60px; font-size: 30px; margin: 0 auto 30px auto; border: 1px solid #C6A87C; }
-    
-    h1 { font-family: 'Playfair Display', serif; font-size: 24px; color: #111; margin: 0 0 10px 0; }
-    p { font-size: 14px; line-height: 1.6; color: #555; margin-bottom: 20px; }
-    
-    /* Order Details Box */
-    .order-box { background-color: #fafafa; border: 1px solid #eee; padding: 20px; border-radius: 6px; margin: 30px 0; text-align: left; }
-    .order-header { font-size: 12px; text-transform: uppercase; color: #888; letter-spacing: 1px; margin-bottom: 5px; }
-    .order-number { font-family: 'Playfair Display', serif; font-size: 20px; color: #C6A87C; font-weight: 700; }
-    
-    /* Invoice Notification */
-    .invoice-note { background-color: #fff8eb; border-left: 4px solid #C6A87C; padding: 15px; text-align: left; font-size: 13px; color: #856404; margin-bottom: 30px; }
+    /* Order Details */
+    .order-summary { background-color: #f9f9f9; padding: 30px; border-radius: 4px; margin: 30px 0; text-align: left; }
+    .order-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; color: #333; }
+    .order-total { border-top: 1px solid #ddd; margin-top: 15px; padding-top: 15px; font-weight: 600; font-size: 16px; display: flex; justify-content: space-between; }
     
     /* Button */
-    .btn { display: inline-block; background-color: #000; color: #C6A87C; padding: 16px 35px; text-decoration: none; font-weight: 600; border-radius: 4px; text-transform: uppercase; font-size: 12px; letter-spacing: 1.5px; transition: all 0.3s ease; }
-    .btn:hover { background-color: #C6A87C; color: #000; }
+    .btn { 
+      display: inline-block; 
+      background-color: #111111; 
+      color: #ffffff; 
+      padding: 15px 30px; 
+      text-decoration: none; 
+      font-size: 12px; 
+      font-weight: 600; 
+      letter-spacing: 1px; 
+      text-transform: uppercase; 
+      border-radius: 2px;
+      margin-top: 20px;
+    }
     
     /* Footer */
-    .footer { background-color: #111; padding: 30px; text-align: center; border-top: 1px solid #222; }
-    .footer p { color: #666; font-size: 11px; margin: 5px 0; }
-    .social-links { margin-bottom: 20px; }
-    .social-links a { color: #C6A87C; text-decoration: none; margin: 0 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-
-    @media only screen and (max-width: 600px) {
-      .content { padding: 30px 20px; }
-      .header { padding: 30px 15px; }
-    }
+    .footer { margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; font-size: 12px; color: #999; }
+    .footer a { color: #C6A87C; text-decoration: none; margin: 0 5px; }
   </style>
 </head>
-<body>
-  <div class="wrapper">
-    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
-      <tr>
-        <td align="center">
-          <div class="container">
-            <!-- Header -->
-            <div class="header">
-               <h2 class="logo-text">Rostro Dorado</h2>
-               <div class="subtitle">Clinic & Spa</div>
-            </div>
-            
-            <!-- Content -->
-            <div class="content">
-              <div class="icon-check">✓</div>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+      <td align="center" style="padding: 40px 0;">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; max-width: 600px; width: 100%;">
+          <tr>
+            <td align="center" style="padding: 40px;">
               
-              <h1>¡Gracias, ${name.split(' ')[0]}!</h1>
-              <p>Hemos recibido tu pedido correctamente. Tu confianza es nuestro mayor tesoro.</p>
+              <!-- Logo -->
+              <img src="https://i.imgur.com/93IWNqy.png" alt="Rostro Dorado" width="200" style="display: block; width: 200px; max-width: 100%; margin-bottom: 20px;" />
               
-              <div class="order-box">
-                <div class="order-header">Tu número de pedido</div>
-                <div class="order-number">#${orderId.slice(0, 8).toUpperCase()}</div>
+              <!-- Title -->
+              <h1 style="font-family: 'Lora', serif; font-size: 24px; color: #111; margin-bottom: 20px;">Confirmación de Pedido</h1>
+              
+              <p>Hola ${name.split(' ')[0]},</p>
+              <p>Gracias por tu compra. Hemos recibido tu pedido <strong>#${orderId.slice(0, 8).toUpperCase()}</strong> y lo estamos procesando.</p>
+              
+              <!-- Attachment Note -->
+              <div style="background-color: #f8f8f8; padding: 15px; border-radius: 4px; margin: 20px 0; font-size: 13px; color: #555;">
+                📎 <strong>Factura Adjunta:</strong> Encontrarás tu factura electrónica en formato PDF adjunta a este correo.
               </div>
 
-              <!-- Invoice Alert -->
-              <div class="invoice-note">
-                <strong>🧾 Factura Disponible:</strong><br>
-                Hemos adjuntado tu factura electrónica oficial a este correo en formato PDF. Puedes descargarla y guardarla para tus registros.
+              <!-- CTA -->
+              <a href="https://rostrodorado.com/mis-pedidos" style="background-color: #111; color: #fff; padding: 14px 28px; text-decoration: none; font-size: 12px; font-weight: bold; text-transform: uppercase; display: inline-block; border-radius: 2px; margin-top: 10px;">
+                Ver Mis Pedidos
+              </a>
+
+              ${trackingInfo ? `
+              <div style="margin-top: 30px; border-top: 1px dashed #eee; padding-top: 20px;">
+                  <p style="font-weight: 600; color: #111; margin-bottom: 5px;">Tu Guía de Rastreo:</p>
+                  <p style="font-family: 'Courier New', monospace; font-size: 18px; color: #111; letter-spacing: 2px; background: #f0f0f0; display: inline-block; padding: 5px 10px; border-radius: 4px;">${trackingInfo.number}</p>
+                  <p style="font-size: 12px; margin-top: 5px;">Transportadora: ${trackingInfo.carrier || 'Envioclick'}</p>
+                  ${trackingInfo.url ? `<p><a href="${trackingInfo.url}" style="color: #C6A87C; text-decoration: underline;">Descargar Rótulo</a></p>` : ''}
+              </div>
+              ` : ''}
+              
+              <!-- Footer -->
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; font-size: 11px; color: #999;">
+                <p>Rostro Dorado Clinic • Riohacha, Colombia</p>
+                <p>
+                  <a href="https://rostrodorado.com" style="color: #C6A87C; text-decoration: none;">Sitio Web</a> | 
+                  <a href="https://www.instagram.com/rostrodoradoclinic/" style="color: #C6A87C; text-decoration: none;">Instagram</a>
+                </p>
               </div>
               
-              <p>Estamos preparando cuidadosamente tus productos. Te notificaremos apenas sean enviados.</p>
-              
-              <a href="https://rostrodorado-clinic.web.app/mis-pedidos" class="btn">Seguir mi Pedido</a>
-            </div>
-            
-            <!-- Footer -->
-            <div class="footer">
-              <div class="social-links">
-                <a href="https://www.instagram.com/rostrodoradoclinic/">Instagram</a>
-                <a href="https://www.facebook.com/people/Dra-Isaura-Dorado/100067023886893/">Facebook</a>
-              </div>
-              <p>Rostro Dorado Clinic • Calle 12 #12-03 local 2 • Riohacha, La Guajira</p>
-              <p>&copy; ${new Date().getFullYear()} Todos los derechos reservados.</p>
-            </div>
-          </div>
-        </td>
-      </tr>
-    </table>
-  </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
 `;
@@ -765,3 +812,147 @@ exports.facebookProductFeed = functions.https.onRequest(async (req, res) => {
 });
 
 
+
+
+/**
+ * 6. calculateShipping
+ * Callable function to get shipping quote from MiPaquete
+ */
+
+const envioclick = require('./envioclick');
+
+exports.calculateShipping = functions.https.onCall(async (data, context) => {
+  try {
+    const { city, department, items } = data;
+    console.log("Calculating shipping (Envioclick) for:", city, department);
+    console.log("Items received:", JSON.stringify(items));
+
+    // 1. Verify Items & Weight from Firestore (Security & Accuracy)
+    let verifiedItems = [];
+    let totalWeightKg = 0;
+
+    if (items && Array.isArray(items)) {
+      const productIds = items.map(i => i.id).filter(id => id);
+
+      // Fetch all products in parallel
+      const productDocs = await Promise.all(
+        productIds.map(id => admin.firestore().collection('products').doc(id).get())
+      );
+
+      verifiedItems = items.map(item => {
+        const productDoc = productDocs.find(doc => doc.id === item.id);
+        const productData = productDoc && productDoc.exists ? productDoc.data() : null;
+
+        // Weight in DB is likely GRAMS (e.g. 150). Convert to KG.
+        // Fallback to 0.5kg if missing.
+        let weightKg = 0.5;
+        if (productData && productData.weight) {
+          weightKg = parseFloat(productData.weight) / 1000; // Grams -> Kg
+        }
+
+        totalWeightKg += weightKg * (item.quantity || 1);
+
+        return {
+          ...item,
+          price: productData ? productData.price : item.price,
+          weight: weightKg,
+          dimensions: productData ? productData.dimensions : null // Pass dimensions
+        };
+      });
+    }
+
+    // Min weight for carrier usually 0.5kg
+    if (totalWeightKg < 0.5) totalWeightKg = 0.5;
+
+    console.log(`Verified Total Weight: ${totalWeightKg} KG`);
+
+    // 2. Call Envia with verified items/weight
+    // We pass the pre-calculated weight to envia.quoteShipping via a special property or let it recalculate
+    // Check envia.js: it sums 'weight'. So we just pass verifiedItems which now have 'weight' in KG.
+    const result = await envioclick.quoteShipping({ city, department, items: verifiedItems });
+
+    if (result.success) {
+      return { success: true, quotes: result.quotes };
+    } else {
+      console.error("Envioclick Quote Failure:", result.error);
+      return { success: false, error: result.error };
+    }
+  } catch (error) {
+    console.error("Error calculating shipping:", error);
+    return { success: false, error: "Error interno al calcular envío: " + error.message };
+  }
+});
+
+
+// Import Tracking Logic
+const { updateTracking } = require('./tracking');
+
+/**
+ * 6. Scheduled Tracking Update
+ * Runs every 2 hours to update status of processing orders.
+ */
+exports.checkShipmentStatus = functions.pubsub.schedule('every 2 hours').onRun(async (context) => {
+  console.log("Running Scheduled Tracking Update...");
+  await updateTracking();
+  return null;
+});
+exports.retryShipmentGeneration = functions.https.onCall(async (data, context) => {
+  // 1. Auth Check (Ideally Admin only)
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
+  }
+
+  // Simplistic admin check: allow any auth user for now or check email domain/claims
+  // const email = context.auth.token.email;
+  // if (!isAdmin(email)) ...
+
+  const { orderId } = data;
+  if (!orderId) {
+    throw new functions.https.HttpsError('invalid-argument', 'The function must be called with an "orderId".');
+  }
+
+  try {
+    const orderRef = admin.firestore().collection('orders').doc(orderId);
+    const orderDoc = await orderRef.get();
+
+    if (!orderDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Order not found.');
+    }
+
+    const orderData = orderDoc.data();
+
+    if (orderData.trackingNumber) {
+      return { success: false, message: "Order already has a tracking number." };
+    }
+
+    // Attempt Shipment Creation
+    const shipmentResult = await envioclick.createShipment({
+      customer: orderData.customer,
+      items: orderData.items,
+      total: orderData.total,
+      shippingOption: orderData.shippingOption
+    });
+
+    if (shipmentResult.success) {
+      const trackingInfo = {
+        number: shipmentResult.trackingNumber,
+        url: shipmentResult.labelUrl
+      };
+
+      await orderRef.update({
+        trackingNumber: trackingInfo.number,
+        shippingLabelUrl: trackingInfo.url,
+        shippingProvider: shipmentResult.carrier || 'Envioclick',
+        shippingGeneratedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return { success: true, trackingNumber: trackingInfo.number };
+    } else {
+      throw new functions.https.HttpsError('internal', 'Envioclick API Failed: ' + (shipmentResult.error?.message || 'Unknown error'));
+    }
+
+  } catch (error) {
+    console.error("Retry Shipment Error:", error);
+    throw new functions.https.HttpsError('internal', error.message);
+  }
+});

@@ -35,8 +35,15 @@ const AdminProducts: React.FC = () => {
         ingredients: [],
         usage: '',
         benefits: [],
-        costPrice: 0
+        costPrice: 0,
+        weight: 1, // Default 1kg
+        dimensions: {
+            width: 10,
+            height: 10,
+            length: 10
+        }
     });
+    const [weightUnit, setWeightUnit] = useState<'kg' | 'g'>('kg');
 
     // CSS to hide spin buttons
     const noSpinnerStyle = `
@@ -240,6 +247,12 @@ const AdminProducts: React.FC = () => {
             : Math.round(product.price * 0.968465 - 833);
 
         setFormData({ ...product, basePrice: effectiveBasePrice });
+        // Auto-detect unit preference: if weight < 1 (e.g. 0.5kg), assume user prefers seeing 500g
+        if (product.weight && product.weight < 1) {
+            setWeightUnit('g');
+        } else {
+            setWeightUnit('kg');
+        }
 
         // Try to reconstruct selectors from category path string if possible
         // Ideally we would need to search the tree, but for now we just load the form data
@@ -263,12 +276,15 @@ const AdminProducts: React.FC = () => {
             benefits: [],
             costPrice: 0,
             stock: 0,
-            basePrice: 0
+            basePrice: 0,
+            weight: 1,
+            dimensions: { width: 10, height: 10, length: 10 }
         });
         setSelectedRoot('');
         setSelectedSub('');
         setSelectedSubSub('');
         setEditingProduct(null);
+        setWeightUnit('kg');
         setIsAdding(false);
         localStorage.removeItem(STORAGE_KEY); // Clear draft
     };
@@ -493,6 +509,83 @@ const AdminProducts: React.FC = () => {
                                                 />
                                             </div>
                                             <p className="text-[10px] text-gold/60 h-8">Valor que deseas recibir (antes de Wompi)</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Shipping Section */}
+                                    <div className="bg-white/5 border border-white/5 rounded-xl p-6 space-y-4">
+                                        <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                            <label className="text-xs uppercase tracking-widest text-white/50 flex items-center gap-2">
+                                                <Package size={14} /> Configuración de Envío (MiPaquete)
+                                            </label>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div className="space-y-1">
+                                                <div className="flex justify-between items-center">
+                                                    <label className="text-[10px] uppercase tracking-widest text-white/40">Peso</label>
+                                                    <div className="flex bg-black/20 rounded border border-white/10 overflow-hidden">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setWeightUnit('kg')}
+                                                            className={`text-[8px] px-1.5 py-0.5 ${weightUnit === 'kg' ? 'bg-gold text-black font-bold' : 'text-white/50 hover:text-white'}`}
+                                                        >
+                                                            KG
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setWeightUnit('g')}
+                                                            className={`text-[8px] px-1.5 py-0.5 ${weightUnit === 'g' ? 'bg-gold text-black font-bold' : 'text-white/50 hover:text-white'}`}
+                                                        >
+                                                            G
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step={weightUnit === 'kg' ? "0.01" : "1"}
+                                                    value={formData.weight ? (weightUnit === 'kg' ? formData.weight : Math.round(formData.weight * 1000)) : ''}
+                                                    onChange={(e) => {
+                                                        const val = Number(e.target.value);
+                                                        setFormData({
+                                                            ...formData,
+                                                            weight: weightUnit === 'kg' ? val : val / 1000
+                                                        })
+                                                    }}
+                                                    className="w-full bg-black/20 border border-white/10 p-2 rounded text-white text-sm focus:border-gold outline-none"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] uppercase tracking-widest text-white/40">Alto (cm)</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={formData.dimensions?.height || ''}
+                                                    onChange={(e) => setFormData({ ...formData, dimensions: { ...formData.dimensions!, height: Number(e.target.value) } })}
+                                                    className="w-full bg-black/20 border border-white/10 p-2 rounded text-white text-sm focus:border-gold outline-none"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] uppercase tracking-widest text-white/40">Ancho (cm)</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={formData.dimensions?.width || ''}
+                                                    onChange={(e) => setFormData({ ...formData, dimensions: { ...formData.dimensions!, width: Number(e.target.value) } })}
+                                                    className="w-full bg-black/20 border border-white/10 p-2 rounded text-white text-sm focus:border-gold outline-none"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] uppercase tracking-widest text-white/40">Largo (cm)</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={formData.dimensions?.length || ''}
+                                                    onChange={(e) => setFormData({ ...formData, dimensions: { ...formData.dimensions!, length: Number(e.target.value) } })}
+                                                    className="w-full bg-black/20 border border-white/10 p-2 rounded text-white text-sm focus:border-gold outline-none"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 

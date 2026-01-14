@@ -4,10 +4,12 @@ import { collection, getDocs, doc, updateDoc, query, orderBy, onSnapshot, Timest
 import { db } from '../../firebase';
 import { Order } from '../../types';
 import { Package, Calendar, User, MapPin, ChevronDown, ChevronUp, Download, MessageCircle, Search, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, Printer, Mail, Phone, ShoppingBag, FileText } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import OrderChat from '../OrderChat';
 import { parseFirestoreDate } from '../../utils/dateUtils';
 import { showToast } from '../../components/ToastContainer';
 import ShippingLabelModal from './ShippingLabelModal';
+import ConfirmModal from '../ConfirmModal';
 
 interface AdminOrdersProps {
     highlightOrderId?: string | null;
@@ -128,6 +130,54 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    };
+
+
+
+    const [generatingLabelId, setGeneratingLabelId] = useState<string | null>(null);
+    const [confirmingShipmentId, setConfirmingShipmentId] = useState<string | null>(null);
+
+    const handleGenerateLabelClick = (orderId: string) => {
+        setConfirmingShipmentId(orderId);
+    };
+
+    const confirmGenerateLabel = async () => {
+        if (!confirmingShipmentId) return;
+        const orderId = confirmingShipmentId;
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return;
+
+        setGeneratingLabelId(orderId);
+        // Modal will close automatically or we can keep it open with loader?
+        // Let's close modal and show loader on button
+        setConfirmingShipmentId(null);
+
+        const functions = getFunctions();
+        const retryShipment = httpsCallable(functions, 'retryShipmentGeneration');
+
+        try {
+            showToast('Generando guía en Envioclick...', 'info');
+            const result = await retryShipment({ orderId: order.id });
+            const data = result.data as any;
+
+            if (data.success) {
+                showToast(`Guía generada: ${data.trackingNumber}`, 'success');
+                // Updating local state to reflect change immediately (though listener might do it too)
+                setOrders(prev => prev.map(o => o.id === order.id ? {
+                    ...o,
+                    trackingNumber: data.trackingNumber,
+                    shippingLabelUrl: data.labelUrl,
+                    shippingProvider: data.carrier || 'Envia'
+                } : o));
+            } else {
+                showToast(`Error: ${data.message}`, 'error');
+            }
+        } catch (error: any) {
+            console.error("Generación Manual Falló:", error);
+            showToast(`Error al generar: ${error.message}`, 'error');
+        } finally {
+            setGeneratingLabelId(null);
+        }
     };
 
     if (loading) {
@@ -253,24 +303,56 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
                                         ))}
                                     </div>
 
-                                    <div className="flex gap-4 mt-4">
+                                    <div className="flex gap-4 mt-4 items-center">
                                         {/* Chat Button */}
                                         <button
                                             onClick={() => setChatOrder(order)}
                                             className="flex items-center gap-2 px-4 py-2 bg-gold/20 hover:bg-gold/30 text-gold rounded-lg transition-colors border border-gold/30"
                                         >
                                             <MessageCircle size={18} />
-                                            <span className="text-sm font-bold uppercase tracking-wider">Chat con Cliente</span>
+                                            <span className="text-sm font-bold uppercase tracking-wider">Chat</span>
                                         </button>
 
-                                        {/* Guide Button */}
+                                        {/* Internal Label (Packing List) */}
                                         <button
                                             onClick={() => setShippingLabelOrder(order)}
-                                            className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors border border-blue-500/30"
+                                            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg transition-colors border border-white/10"
+                                            title="Imprimir Guía Interna"
                                         >
                                             <Printer size={18} />
-                                            <span className="text-sm font-bold uppercase tracking-wider">Generar Guía</span>
+                                            <span className="text-sm font-bold uppercase tracking-wider">Interna</span>
                                         </button>
+
+                                        {/* Envia Label Actions */}
+                                        {/* Envioclick Label Actions */}
+                                        {order.trackingNumber ? (
+                                            <a
+                                                href={order.shippingLabelUrl || '#'}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-2 px-4 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg transition-colors border border-green-500/30"
+                                            >
+                                                <CheckCircle size={18} />
+                                                <span className="text-sm font-bold uppercase tracking-wider">Ver Guía Envioclick</span>
+                                            </a>
+                                        ) : (
+                                            order.status === 'processing' && (
+                                                <button
+                                                    onClick={() => handleGenerateLabelClick(order.id)}
+                                                    disabled={generatingLabelId === order.id}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50"
+                                                >
+                                                    {generatingLabelId === order.id ? (
+                                                        <span className="animate-spin h-4 w-4 border-2 border-blue-400 rounded-full border-t-transparent"></span>
+                                                    ) : (
+                                                        <Clock size={18} />
+                                                    )}
+                                                    <span className="text-sm font-bold uppercase tracking-wider">
+                                                        {generatingLabelId === order.id ? 'Generando...' : 'Generar Guía Envioclick'}
+                                                    </span>
+                                                </button>
+                                            )
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -303,6 +385,17 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
                     onClose={() => setShippingLabelOrder(null)}
                 />
             )}
+
+            <ConfirmModal
+                isOpen={!!confirmingShipmentId}
+                title="Generar Guía de Transporte"
+                message={`¿Estás seguro de que deseas generar la guía para el pedido #${confirmingShipmentId?.slice(0, 8)}? Esto descontará saldo de tu cuenta Envioclick.`}
+                confirmText="Sí, Generar Guía"
+                cancelText="Cancelar"
+                onConfirm={confirmGenerateLabel}
+                onCancel={() => setConfirmingShipmentId(null)}
+                type="info"
+            />
         </div>
     );
 };

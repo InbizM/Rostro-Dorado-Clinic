@@ -18,7 +18,9 @@ import AdminDashboard from './components/Admin/AdminDashboard'; // Imported
 import OrdersPage from './components/Profile/OrdersPage';
 import ToastContainer from './components/ToastContainer'; // Imported
 import LoginVerifyPage from './components/Auth/LoginVerifyPage'; // Imported
-import ReturnsPolicy from './components/Policies/ReturnsPolicy';
+import TerminosCondiciones from './components/Legal/TerminosCondiciones';
+import PoliticaPrivacidad from './components/Legal/PoliticaPrivacidad';
+import PoliticaEnvios from './components/Legal/PoliticaEnvios';
 
 const App: React.FC = () => {
   return (
@@ -49,7 +51,16 @@ const App: React.FC = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/verify-login" element={<LoginVerifyPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/politica-devoluciones" element={<ReturnsPolicy />} />
+
+            {/* Legal Pages */}
+            <Route path="/terminos-y-condiciones" element={<TerminosCondiciones />} />
+            <Route path="/politica-de-privacidad" element={<PoliticaPrivacidad />} />
+            <Route path="/politica-de-envios" element={<PoliticaEnvios />} />
+
+
+
+            {/* Redirect legacy route if existed */}
+            <Route path="/politica-devoluciones" element={<Navigate to="/politica-de-envios" replace />} />
 
             {/* Redirect old /products to /productos */}
             <Route path="/products" element={<Navigate to="/productos" replace />} />

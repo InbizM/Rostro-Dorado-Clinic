@@ -11,7 +11,8 @@ export const products: Product[] = [
         category: 'Kits',
         ingredients: ['Ácido Hialurónico', 'Aloe Vera', 'Vitamina E', 'Pantenol'],
         usage: 'Usar mañana y noche. Paso 1: Limpiador. Paso 2: Sérum. Paso 3: Hidratante (solo noche). Paso 4: Protector Solar (solo día).',
-        benefits: ['Acelera la recuperación', 'Reduce la inflamación', 'Protege de rayos UV', 'Mantiene la hidratación']
+        benefits: ['Acelera la recuperación', 'Reduce la inflamación', 'Protege de rayos UV', 'Mantiene la hidratación'],
+        weight: 1 // Estimated kg
     },
     {
         id: '2',
@@ -23,7 +24,8 @@ export const products: Product[] = [
         category: 'Cuidado Facial',
         ingredients: ['Ácido Hialurónico 2%', 'Niacinamida', 'Agua Termal'],
         usage: 'Aplicar 3-4 gotas sobre la piel limpia y húmeda antes de tu crema hidratante.',
-        benefits: ['Hidratación intensa', 'Efecto relleno inmediato', 'Mejora la textura de la piel']
+        benefits: ['Hidratación intensa', 'Efecto relleno inmediato', 'Mejora la textura de la piel'],
+        weight: 0.2
     },
     {
         id: '3',
@@ -35,7 +37,8 @@ export const products: Product[] = [
         category: 'Protección',
         ingredients: ['Dióxido de Titanio', 'Óxido de Zinc', 'Vitamina C'],
         usage: 'Aplicar generosamente 15 minutos antes de la exposición solar. Reaplicar cada 4 horas.',
-        benefits: ['Protección SPF 50+', 'No comedogénico', 'Acabado invisible', 'Antioxidante']
+        benefits: ['Protección SPF 50+', 'No comedogénico', 'Acabado invisible', 'Antioxidante'],
+        weight: 0.2
     },
     {
         id: '4',
@@ -47,7 +50,8 @@ export const products: Product[] = [
         category: 'Cuidado Facial',
         ingredients: ['Ceramidas', 'Péptidos', 'Retinol Suave'],
         usage: 'Aplicar en rostro y cuello como último paso de tu rutina nocturna.',
-        benefits: ['Reparación barrera cutánea', 'Estimula colágeno', 'Nutrición profunda']
+        benefits: ['Reparación barrera cutánea', 'Estimula colágeno', 'Nutrición profunda'],
+        weight: 0.3
     },
     {
         id: '5',
@@ -59,7 +63,8 @@ export const products: Product[] = [
         category: 'Limpieza',
         ingredients: ['Extracto de Avena', 'Glicerina', 'Caléndula'],
         usage: 'Masajear sobre la piel húmeda y enjuagar con agua tibia.',
-        benefits: ['Limpieza efectiva', 'Calma la irritación', 'No reseca']
+        benefits: ['Limpieza efectiva', 'Calma la irritación', 'No reseca'],
+        weight: 0.3
     },
     {
         id: '6',
@@ -71,6 +76,8 @@ export const products: Product[] = [
         category: 'Mascarillas',
         ingredients: ['Vitamina C', 'Ácido Hialurónico', 'Colágeno Hidrolizado'],
         usage: 'Dejar actuar por 20 minutos. Masajear el exceso de producto.',
-        benefits: ['Luminosidad instantánea', 'Hidratación flash', 'Piel descansada']
+        benefits: ['Luminosidad instantánea', 'Hidratación flash', 'Piel descansada'],
+        weight: 0.1
     }
 ];
+

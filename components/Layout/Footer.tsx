@@ -65,23 +65,15 @@ const Footer: React.FC = () => {
                         </a>
                     </div>
 
-                    <div className="flex gap-4 md:gap-8">
-                        <button
-                            onClick={(e) => openLegal(e, 'terms')}
-                            className="p-3 md:p-2 hover:text-gold transition-colors cursor-hover inline-block"
-                            aria-label="Ver términos y condiciones"
-                        >
+                    <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-center md:items-start">
+                        <a href="/terminos-y-condiciones" className="p-2 hover:text-gold transition-colors text-xs md:text-sm">
                             Términos y Condiciones
-                        </button>
-                        <button
-                            onClick={(e) => openLegal(e, 'privacy')}
-                            className="p-3 md:p-2 hover:text-gold transition-colors cursor-hover inline-block"
-                            aria-label="Ver política de privacidad"
-                        >
+                        </a>
+                        <a href="/politica-de-privacidad" className="p-2 hover:text-gold transition-colors text-xs md:text-sm">
                             Política de Privacidad
-                        </button>
-                        <a href="/politica-devoluciones" className="p-3 md:p-2 hover:text-gold transition-colors cursor-hover inline-block">
-                            Política de Devoluciones
+                        </a>
+                        <a href="/politica-de-envios" className="p-2 hover:text-gold transition-colors text-xs md:text-sm">
+                            Política de Envíos y Devoluciones
                         </a>
                     </div>
 

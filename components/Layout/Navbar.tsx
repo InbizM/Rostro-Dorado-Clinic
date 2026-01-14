@@ -125,13 +125,13 @@ const Navbar: React.FC = () => {
           </nav>
 
           {/* Logo (Always Centered Absolutely) */}
-          <div className="flex-shrink-0 flex items-center justify-center absolute top-1/2 transform -translate-y-1/2 z-10 left-6 md:left-12 translate-x-0 xl:left-1/2 xl:-translate-x-1/2">
+          <div className="flex-shrink-0 flex items-center justify-center absolute top-1/2 transform -translate-y-1/2 z-10 left-4 md:left-12 translate-x-0 xl:left-1/2 xl:-translate-x-1/2">
             <a
               href="#"
               onClick={(e) => handleNavClick(e, '#')}
               className="flex flex-col items-center group cursor-hover"
             >
-              <div className={`h-6 md:h-8 w-auto transition-colors duration-300 ${textColor}`}>
+              <div className={`h-5 md:h-8 w-auto transition-colors duration-300 ${textColor}`}>
                 <svg
                   version="1.2"
                   xmlns="http://www.w3.org/2000/svg"

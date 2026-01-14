@@ -18,5 +18,7 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+import { getFunctions } from "firebase/functions";
+export const functions = getFunctions(app);
 export { app };
 

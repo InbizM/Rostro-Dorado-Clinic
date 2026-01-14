@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ShoppingBag, Star, Check, Play, ChevronDown, Sparkles, Droplets, Info } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Star, Check, Play, ChevronDown, ChevronUp, Sparkles, Droplets, Info } from 'lucide-react';
 import Navbar from './Layout/Navbar';
 import Footer from './Layout/Footer';
 import LegalModal from './LegalModal';
@@ -91,6 +91,61 @@ const ProductDetailsPage: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             className="lg:col-span-5"
                         >
+
+                            {/* Detalles Técnicos */}
+                            <div className="border border-border/50 rounded-lg overflow-hidden">
+                                <button
+                                    onClick={() => setOpenSection(openSection === 'specs' ? '' : 'specs')}
+                                    className="w-full flex items-center justify-between p-4 bg-white hover:bg-gray-50 transition-colors"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Info className="w-5 h-5 text-gold" />
+                                        <span className="text-black text-sm font-medium">Especificaciones Técnicas</span>
+                                    </div>
+                                    {openSection === 'specs' ? (
+                                        <ChevronUp className="w-5 h-5 text-gray-400" />
+                                    ) : (
+                                        <ChevronDown className="w-5 h-5 text-gray-400" />
+                                    )}
+                                </button>
+                                <AnimatePresence>
+                                    {openSection === 'specs' && (
+                                        <motion.div
+                                            initial={{ height: 0 }}
+                                            animate={{ height: "auto" }}
+                                            exit={{ height: 0 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="p-4 border-t border-border/50 bg-white space-y-3">
+                                                {product.weight && (
+                                                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-md">
+                                                        <span className="text-gray-600 font-medium">Peso (Envío)</span>
+                                                        <span className="text-black font-semibold text-right">
+                                                            {product.weight >= 1000
+                                                                ? `${(product.weight / 1000).toFixed(2)} kg`
+                                                                : `${product.weight} g`}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {product.dimensions && (
+                                                    <div className="flex justify-between items-center bg-gray-50 p-3 rounded-md">
+                                                        <span className="text-gray-600 font-medium">Dimensiones</span>
+                                                        <span className="text-black font-semibold text-right">
+                                                            {product.dimensions.length} x {product.dimensions.width} x {product.dimensions.height} cm
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {!product.weight && !product.dimensions && (
+                                                    <p className="text-gray-500 italic text-center text-sm">Sin especificaciones registradas.</p>
+                                                )}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
+                            {/* Descripción Completa */}
+
                             {/* Main Image */}
                             <div className="relative rounded-2xl overflow-hidden aspect-square bg-white border border-gray-100 shadow-sm">
                                 {activeMedia?.type === 'video' ? (

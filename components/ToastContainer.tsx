@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, Info, X } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface Toast {
     id: string;
@@ -27,19 +27,22 @@ const ToastItem: React.FC<ToastProps> = ({ toast, onClose }) => {
     const icons = {
         success: <CheckCircle size={24} />,
         error: <XCircle size={24} />,
-        info: <Info size={24} />
+        info: <Info size={24} />,
+        warning: <Info size={24} className="text-yellow-500" />
     };
 
     const colors = {
         success: 'border-green-500 text-green-500',
         error: 'border-red-500 text-red-500',
-        info: 'border-blue-500 text-blue-500'
+        info: 'border-blue-500 text-blue-500',
+        warning: 'border-yellow-500 text-yellow-500'
     };
 
     const iconColors = {
         success: 'text-green-500',
         error: 'text-red-500',
-        info: 'text-blue-500'
+        info: 'text-blue-500',
+        warning: 'text-yellow-500'
     };
 
     return (
@@ -47,7 +50,7 @@ const ToastItem: React.FC<ToastProps> = ({ toast, onClose }) => {
             initial={{ opacity: 0, x: 20, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 20, scale: 0.95 }}
-            className={`flex items-center gap-3 px-5 py-4 rounded-lg bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-l-4 min-w-[320px] max-w-md ${colors[toast.type].split(' ')[0]}`}
+            className={`flex items-center gap-3 px-5 py-4 rounded-lg bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-l-4 min-w-[320px] max-w-md ${(colors[toast.type] || colors.info).split(' ')[0]}`}
         >
             <div className={`flex-shrink-0 ${iconColors[toast.type]}`}>
                 {icons[toast.type]}

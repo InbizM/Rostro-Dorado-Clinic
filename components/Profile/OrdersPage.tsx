@@ -346,6 +346,10 @@ const OrdersPage: React.FC = () => {
                                                 <div className="space-y-2 text-sm text-white/70">
                                                     <p><span className="text-white/30 block text-xs mb-1 uppercase tracking-wider">Dirección</span> {order.customer.address}</p>
                                                     <p><span className="text-white/30 block text-xs mb-1 uppercase tracking-wider">Ubicación</span> {order.customer.city}, {order.customer.department}</p>
+                                                    {order.trackingNumber && (
+                                                        <p className="mt-2"><span className="text-white/30 block text-xs mb-1 uppercase tracking-wider">Guía {order.shippingProvider ? `(${order.shippingProvider})` : ''}</span>
+                                                            <span className="font-mono bg-white/10 px-2 py-0.5 rounded text-white">{order.trackingNumber}</span></p>
+                                                    )}
                                                     {order.customer.notes && (
                                                         <p className="mt-4"><span className="text-white/30 block text-xs mb-1 uppercase tracking-wider">Notas</span> "{order.customer.notes}"</p>
                                                     )}
@@ -375,6 +379,19 @@ const OrdersPage: React.FC = () => {
                                                 <FileText size={18} />
                                                 <span className="text-sm font-bold uppercase tracking-wider">Ver Recibo</span>
                                             </button>
+
+                                            {order.shippingLabelUrl && (
+                                                <a
+                                                    href={order.shippingLabelUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg transition-colors border border-purple-500/30"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <Package size={18} />
+                                                    <span className="text-sm font-bold uppercase tracking-wider">Ver Guía</span>
+                                                </a>
+                                            )}
                                         </div>
                                     </div>
                                 )}

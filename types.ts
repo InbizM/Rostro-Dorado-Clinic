@@ -1,4 +1,5 @@
 import { LucideIcon } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 
 export interface Treatment {
   id: number;
@@ -44,6 +45,12 @@ export interface Product {
   basePrice?: number; // Price before Wompi fee
   stock?: number;
   media?: { type: 'image' | 'video'; url: string }[];
+  weight?: number; // In Kg
+  dimensions?: {
+    width: number; // cm
+    height: number; // cm
+    length: number; // cm
+  };
 }
 
 export interface CartItem extends Product {
@@ -77,6 +84,24 @@ export interface Order {
   transactionId?: string;
   couponCode?: string;
   discountApplied?: number;
+  trackingNumber?: string;
+  shippingLabelUrl?: string;
+  shippingProvider?: string;
+  shippingOption?: ShippingOption;
+}
+
+export interface ShippingOption {
+  idRate?: number;
+  idProduct?: number;
+  carrier?: string;
+  service?: string;
+  shippingCost?: number;
+  deliveryCompany?: {
+    companyName: string;
+    deliveryEstimate: string;
+    shippingCost: number;
+    service: string;
+  };
 }
 
 

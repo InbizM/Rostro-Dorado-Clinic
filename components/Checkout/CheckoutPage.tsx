@@ -22,6 +22,8 @@ import {
     WompiWidgetConfig
 } from '../../utils/wompi';
 import { showToast } from '../../components/ToastContainer';
+import { functions } from '../../firebase';
+import { httpsCallable } from 'firebase/functions';
 
 const CheckoutPage: React.FC = () => {
     const { cart, cartTotal, clearCart, toggleCart, cartCount, applyCoupon, removeCoupon, appliedCoupon, discountAmount, totalWithDiscount } = useCart();
@@ -53,6 +55,12 @@ const CheckoutPage: React.FC = () => {
         saveInfo: true, // "Guardar mi información..."
         notes: ''
     });
+
+    const [shippingCost, setShippingCost] = useState(0);
+    const [shippingOptions, setShippingOptions] = useState<any[]>([]);
+    const [selectedShippingOption, setSelectedShippingOption] = useState<any>(null);
+    const [shippingLoading, setShippingLoading] = useState(false);
+    const [shippingError, setShippingError] = useState<string | null>(null);
 
     const [billingOption, setBillingOption] = useState<'same' | 'different'>('same');
 
@@ -139,12 +147,75 @@ const CheckoutPage: React.FC = () => {
         const value = e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
         const newFormData = { ...formData, [e.target.name]: value };
         setFormData(newFormData);
-        // Persist to localStorage
         if (selectedAddressId === 'new') {
             // Only persist if typing a new address, avoiding overwriting with saved address data which acts as temp
             localStorage.setItem('checkoutFormData', JSON.stringify(newFormData));
         }
     };
+
+    // Calculate Shipping Effect
+    useEffect(() => {
+        if (formData.city && formData.department && cart.length > 0) {
+            const timer = setTimeout(async () => {
+                setShippingLoading(true);
+                setShippingError(null);
+                try {
+                    const calculateShipping = httpsCallable(functions, 'calculateShipping');
+                    const result = await calculateShipping({
+                        city: formData.city,
+                        department: formData.department,
+                        items: cart
+                    });
+                    const data = result.data as any;
+
+                    if (data.success) {
+                        const quotes = data.quotes || [];
+                        setShippingOptions(quotes);
+
+                        if (quotes.length > 0) {
+                            // Sort by cost (Cheapest first)
+                            const sorted = [...quotes].sort((a, b) => {
+                                const costA = a.shippingCost || a.deliveryCompany?.shippingCost || 0;
+                                const costB = b.shippingCost || b.deliveryCompany?.shippingCost || 0;
+                                return costA - costB;
+                            });
+
+                            const best = sorted[0];
+                            setSelectedShippingOption(best);
+
+                            // FREE SHIPPING RULE: > 300.000
+                            if (cartTotal > 300000) {
+                                setShippingCost(0);
+                            } else {
+                                const cost = best.shippingCost || best.deliveryCompany?.shippingCost || 0;
+                                setShippingCost(cost);
+                            }
+                        } else {
+                            // No quotes found
+                            setShippingCost(0);
+                            setSelectedShippingOption(null);
+                        }
+                    } else {
+                        console.error("Shipping Calculation Failed:", data);
+                        setShippingError(data.error || "Error al calcular envío.");
+                        setShippingCost(0);
+                    }
+                } catch (e) {
+                    console.error("Shipping Error:", e);
+                    setShippingError("No se pudo cotizar envío");
+                    setShippingCost(0);
+                } finally {
+                    setShippingLoading(false);
+                }
+            }, 1000); // 1s debounce
+            return () => clearTimeout(timer);
+        } else {
+            // Reset if missing location
+            setShippingCost(0);
+            setShippingOptions([]);
+            setSelectedShippingOption(null);
+        }
+    }, [formData.city, formData.department, cart, cartTotal]);
 
     const cities = COLOMBIA_DATA.find(d => d.departamento === formData.department)?.ciudades || [];
 
@@ -153,6 +224,22 @@ const CheckoutPage: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // VALIDATION: Ensure shipping is selected if not eligible for free shipping
+        const isFreeShipping = (appliedCoupon ? totalWithDiscount : cartTotal) > 300000;
+        if (!isFreeShipping && !selectedShippingOption) {
+            if (shippingLoading) {
+                showToast('Estamos calculando el envío. Por favor espera un momento.', 'info');
+                return;
+            }
+            if (shippingOptions.length > 0) {
+                showToast('Por favor selecciona una opción de envío.', 'error');
+                return;
+            }
+            showToast('Debes ingresar una dirección válida para calcular el envío.', 'error');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -166,12 +253,13 @@ const CheckoutPage: React.FC = () => {
                     name: `${formData.firstName} ${formData.lastName}`.trim()
                 },
                 items: cart,
-                total: appliedCoupon ? totalWithDiscount : cartTotal, // Use discounted total
+                total: (appliedCoupon ? totalWithDiscount : cartTotal) + shippingCost, // Add shipping to total
                 status: 'pending',
                 updatedAt: serverTimestamp(), // Track updates
                 paymentMethod: 'wompi',
                 couponCode: appliedCoupon?.code || null,
                 discountApplied: discountAmount || 0,
+                shippingOption: selectedShippingOption // Save selected carrier info
             };
 
             let orderId = currentOrderId;
@@ -193,7 +281,7 @@ const CheckoutPage: React.FC = () => {
             }
 
             // 2. Prepare Wompi Data
-            const finalTotal = appliedCoupon ? totalWithDiscount : cartTotal;
+            const finalTotal = (appliedCoupon ? totalWithDiscount : cartTotal) + shippingCost;
             const amountInCents = Math.round(finalTotal * 100);
             const currency = 'COP';
             // Use unique reference for Wompi transaction attempt (Order ID + Timestamp)
@@ -235,38 +323,51 @@ const CheckoutPage: React.FC = () => {
                 const transaction = result.transaction;
 
                 if (transaction.status === 'APPROVED') {
-                    setSuccess(true);
-                    clearCart();
-                    localStorage.removeItem('checkoutFormData');
-                    setCurrentOrderId(null); // Reset
+                    setLoading(true); // Reuse loading or add distinct processing state
+                    // Show specific "Finalizing" toast or overlay if needed, 
+                    // but reusing loading is simplest to block interactions. 
+                    // Better: use a distinct "Finishing Order" state for clarity.
 
-                    if (orderId) {
-                        const orderRef = doc(db, 'orders', orderId);
-                        await updateDoc(orderRef, {
-                            status: 'processing',
-                            paymentStatus: 'approved',
-                            transactionId: transaction.id,
-                            paymentMethod: transaction.paymentMethodType // Save the real method (CARD, NEQUI, etc)
-                        });
+                    try {
+                        if (orderId) {
+                            const orderRef = doc(db, 'orders', orderId);
+                            await updateDoc(orderRef, {
+                                status: 'processing',
+                                paymentStatus: 'approved',
+                                transactionId: transaction.id,
+                                paymentMethod: transaction.paymentMethodType
+                            });
 
-                        await addDoc(collection(db, 'payments'), {
-                            id: transaction.id,
-                            orderId: orderId,
-                            userId: currentUser?.uid || 'guest',
-                            amountInCents: transaction.amountInCents,
-                            status: transaction.status,
-                            paymentMethod: transaction.paymentMethodType,
-                            reference: transaction.reference,
-                            createdAt: serverTimestamp(),
-                            customerEmail: transaction.customerEmail
-                        });
+                            await addDoc(collection(db, 'payments'), {
+                                id: transaction.id,
+                                orderId: orderId,
+                                userId: currentUser?.uid || 'guest',
+                                amountInCents: transaction.amountInCents,
+                                status: transaction.status,
+                                paymentMethod: transaction.paymentMethodType,
+                                reference: transaction.reference,
+                                createdAt: serverTimestamp(),
+                                customerEmail: transaction.customerEmail
+                            });
+                        }
+
+                        // ONLY after DB updates are confirmed:
+                        clearCart();
+                        localStorage.removeItem('checkoutFormData');
+                        setCurrentOrderId(null);
+                        setSuccess(true);
+
+                    } catch (error) {
+                        console.error("Error finalizing order:", error);
+                        showToast('El pago fue exitoso pero hubo un error actualizando el pedido. Contáctanos.', 'warning');
+                        // Still show success because they paid? 
+                        // Yes, but maybe log it well.
+                        setSuccess(true);
+                    } finally {
+                        setLoading(false);
                     }
 
                 } else if (transaction.status === 'DECLINED' || transaction.status === 'ERROR') {
-                    // Update order status to reflect failure attempt if needed, 
-                    // but keeping it as pending allows retry without confusing user.
-                    // Or we could set it to 'payment_failed' if we had that status.
-                    // For now, just showing toast.
                     showToast('Transacción rechazada o error. Intenta nuevamente.', 'error');
                 }
             });
@@ -652,10 +753,21 @@ const CheckoutPage: React.FC = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-black text-white font-bold py-5 rounded-lg text-xl hover:opacity-90 transition-opacity"
+                            className="w-full bg-black text-white font-bold py-5 rounded-lg text-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading ? 'Redirigiendo a Wompi...' : 'Pagar ahora'}
+                            {loading ? (
+                                <>PROCESANDO...</>
+                            ) : (
+                                <>PAGAR AHORA</>
+                            )}
                         </button>
+
+                        <p className="text-[10px] text-center mt-4 text-gray-500">
+                            Al finalizar la compra, aceptas nuestros <a href="/terminos-y-condiciones" target="_blank" className="underline hover:text-gold">Términos y Condiciones</a>,
+                            <a href="/politica-de-privacidad" target="_blank" className="underline hover:text-gold mx-1">Política de Privacidad</a> y
+                            <a href="/politica-de-envios" target="_blank" className="underline hover:text-gold ml-1">Política de Envíos</a>.
+                            También aceptas recibir comunicaciones promocionales.
+                        </p>
 
                     </form>
                 </div>
@@ -740,17 +852,67 @@ const CheckoutPage: React.FC = () => {
                                 <span className="font-bold">-${discountAmount.toLocaleString()}</span>
                             </div>
                         )}
+
+                        {/* Shipping Selection */}
+                        {shippingOptions.length > 0 && !shippingLoading && (
+                            <div className="mb-4 space-y-2 border-b border-gray-100 pb-4">
+                                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Opción de Envío</h4>
+                                {shippingOptions.map((opt, idx) => {
+                                    const cost = opt.shippingCost || opt.deliveryCompany?.shippingCost || 0;
+                                    const company = opt.deliveryCompany?.companyName || "Envío Estándar";
+                                    const days = opt.deliveryDay || '?';
+                                    const isSelected = selectedShippingOption === opt;
+                                    const isFreeShipping = (appliedCoupon ? totalWithDiscount : cartTotal) > 300000;
+
+                                    return (
+                                        <div
+                                            key={idx}
+                                            onClick={() => {
+                                                setSelectedShippingOption(opt);
+                                                // If free shipping, cost remains 0 in global state map, 
+                                                // but we'll set it properly via effects usually.
+                                                // Actually let's force set it here too based on rule
+                                                if (isFreeShipping) setShippingCost(0);
+                                                else setShippingCost(cost);
+                                            }}
+                                            className={`p-3 border rounded-lg cursor-pointer flex justify-between items-center transition-all ${isSelected ? 'border-gold bg-gold/5 ring-1 ring-gold' : 'border-gray-200 hover:bg-gray-50'}`}
+                                        >
+                                            <div>
+                                                <p className="font-bold text-sm text-gray-800">{company}</p>
+                                                <p className="text-xs text-gray-500">{days} días hábiles</p>
+                                            </div>
+                                            <div className="text-right">
+                                                {isFreeShipping ? (
+                                                    <>
+                                                        <span className="text-xs text-gray-400 line-through mr-2">${cost.toLocaleString()}</span>
+                                                        <span className="font-bold text-green-600">GRATIS</span>
+                                                    </>
+                                                ) : (
+                                                    <p className="font-bold text-gray-900">${cost.toLocaleString()}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
                         <div className="flex justify-between">
                             <span>Envío</span>
-                            <span className="text-gray-800">GRATIS</span>
+                            <span className="text-gray-800">
+                                {shippingLoading ? 'Calculando...' : (
+                                    shippingCost > 0 ? `$${shippingCost.toLocaleString()}` : (cartTotal > 300000 ? 'GRATIS' : 'Por calcular')
+                                )}
+                            </span>
                         </div>
+                        {shippingError && <p className="text-[10px] text-red-500 text-right">{shippingError}</p>}
                     </div>
 
                     <div className="border-t border-gray-200 mt-6 pt-6 flex justify-between items-center">
                         <span className="text-xl font-medium text-gray-800">Total</span>
                         <div className="flex items-baseline gap-2">
                             <span className="text-xs text-gray-500">COP</span>
-                            <span className="text-3xl font-bold text-black">${(appliedCoupon ? totalWithDiscount : cartTotal).toLocaleString()}</span>
+                            <span className="text-3xl font-bold text-black">${((appliedCoupon ? totalWithDiscount : cartTotal) + shippingCost).toLocaleString()}</span>
                         </div>
                     </div>
 
