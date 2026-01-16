@@ -896,6 +896,61 @@ exports.checkShipmentStatus = functions.pubsub.schedule('every 2 hours').onRun(a
   await updateTracking();
   return null;
 });
+
+/**
+ * 7. Manual Tracking Update (Admin Button)
+ */
+exports.manualTrackingUpdate = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be logged in.');
+
+  const { orderId } = data;
+  if (!orderId) throw new functions.https.HttpsError('invalid-argument', 'Missing orderId');
+
+  const orderRef = admin.firestore().collection('orders').doc(orderId);
+  const orderDoc = await orderRef.get();
+
+  if (!orderDoc.exists) throw new functions.https.HttpsError('not-found', 'Order not found');
+
+  const order = orderDoc.data();
+  if (!order.trackingNumber) throw new functions.https.HttpsError('failed-precondition', 'Order has no tracking number');
+
+  try {
+    const envioclick = require('./envioclick');
+    console.log(`[Manual Track] Tracking Order ${orderId} (${order.trackingNumber})...`);
+
+    // Call Track
+    const trackResult = await envioclick.trackShipment(order.trackingNumber);
+
+    if (trackResult.success) {
+      let newStatus = null;
+      const statusLower = (trackResult.status || '').toLowerCase();
+
+      // Simple status mapping
+      if (statusLower.includes('entregado') || statusLower.includes('delivered')) newStatus = 'delivered';
+      else if (statusLower.includes('transito') || statusLower.includes('recolección')) newStatus = 'shipped';
+      else if (statusLower.includes('cancelado')) newStatus = 'cancelled';
+
+      const updateData = {
+        trackingStatus: trackResult.status,
+        trackingUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      if (newStatus && newStatus !== order.status) {
+        updateData.status = newStatus;
+      }
+
+      await orderRef.update(updateData);
+
+      return { success: true, status: trackResult.status, newStatus };
+    } else {
+      return { success: false, error: trackResult.error || 'Tracking failed' };
+    }
+  } catch (error) {
+    console.error("Manual Track Error:", error);
+    throw new functions.https.HttpsError('internal', error.message);
+  }
+});
+
 exports.retryShipmentGeneration = functions.https.onCall(async (data, context) => {
   // 1. Auth Check (Ideally Admin only)
   if (!context.auth) {
@@ -946,9 +1001,14 @@ exports.retryShipmentGeneration = functions.https.onCall(async (data, context) =
         shippingGeneratedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      return { success: true, trackingNumber: trackingInfo.number };
+      return {
+        success: true,
+        trackingNumber: trackingInfo.number,
+        labelUrl: trackingInfo.url
+      };
     } else {
-      throw new functions.https.HttpsError('internal', 'Envioclick API Failed: ' + (shipmentResult.error?.message || 'Unknown error'));
+      const errorMsg = typeof shipmentResult.error === 'string' ? shipmentResult.error : (shipmentResult.error?.message || 'Unknown error');
+      throw new functions.https.HttpsError('internal', 'Envioclick API Failed: ' + errorMsg);
     }
 
   } catch (error) {

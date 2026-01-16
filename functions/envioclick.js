@@ -40,8 +40,12 @@ async function quoteShipping(data) {
 
         // Calculate dimensional weight roughly if needed, or use provided dimensions
         // Envioclick requires packages array
+        // FIX: Normalise weight (Grams -> Kg)
+        const totalWeightRaw = items.reduce((acc, i) => acc + (i.weight || 500) * i.quantity, 0);
+        const weightKg = totalWeightRaw > 10 ? totalWeightRaw / 1000 : totalWeightRaw;
+
         const packageData = {
-            weight: items.reduce((acc, i) => acc + (i.weight || 1) * i.quantity, 0),
+            weight: Math.max(0.5, weightKg),
             height: 10, // Default or calculate max
             width: 10,
             length: 10
@@ -65,6 +69,7 @@ async function quoteShipping(data) {
         // console.log("[Envioclick Quote] API Response Status:", res.status);
 
         if (res.data.status === 'OK' && res.data.data.rates) {
+            console.log("RAW RATES EXTRACT:", JSON.stringify(res.data.data.rates.slice(0, 2), null, 2));
             // Map keys to match previous Envia format for Frontend compatibility
             const quotes = res.data.data.rates.map(rate => ({
                 // Standard internal fields
@@ -117,8 +122,15 @@ async function createShipment(data) {
         let idRate = shippingOption?.idRate;
 
         // Construct Packages Object (Reusable)
+        // Construct Packages Object (Reusable)
+        // CRITICAL FIX: Convert weight from Grams to Kg.
+        // If weight is > 10, assume it's Grams and divide. If < 10, assume it's already Kg.
+        // This is a heuristic because DB has mixed units potentially.
+        const totalWeightRaw = items.reduce((acc, i) => acc + (i.weight || 500) * i.quantity, 0);
+        const weightKg = totalWeightRaw > 10 ? totalWeightRaw / 1000 : totalWeightRaw;
+
         const packageData = {
-            weight: items.reduce((acc, i) => acc + (i.weight || 1) * i.quantity, 0),
+            weight: Math.max(0.5, weightKg), // Min 0.5 Kg
             height: 10,
             width: 10,
             length: 10
@@ -126,7 +138,7 @@ async function createShipment(data) {
 
         const buildShipmentPayload = (rateId) => ({
             "idRate": rateId,
-            "myShipmentReference": `ORD-${Date.now()}`, // Unique Ref
+            "myShipmentReference": `ORD-${Date.now()}`,
             "requestPickup": false,
             "insurance": true,
             "description": "Productos de Belleza",
@@ -138,12 +150,12 @@ async function createShipment(data) {
                 "lastName": "Dorado",
             },
             "destination": {
-                "company": "",
+                "company": "Particular", // Required min 2 chars, cannot be empty
                 "firstName": customer.firstName,
                 "lastName": customer.lastName,
                 "email": customer.email,
-                "phone": (customer.phone || '3000000000').replace(/\D/g, '').slice(-10) || '3000000000', // Ensure 10 digits clean
-                "address": (customer.address || 'Calle Principal').slice(0, 40), // Truncate if too long?
+                "phone": (customer.phone || '3000000000').replace(/\D/g, '').slice(-10) || '3000000000',
+                "address": (customer.address || 'Calle Principal').slice(0, 40),
                 "suburb": customer.neighborhood || "Centro", // Required field
                 "crossStreet": "N/A",
                 "reference": customer.notes || "Residencial",
@@ -165,6 +177,7 @@ async function createShipment(data) {
         if (idRate) {
             try {
                 const payload = buildShipmentPayload(idRate);
+                console.log(`[CreateShipment] Attempting with ID: ${idRate}`);
                 const res = await axios.post(`${API_URL}${endpoint}`, payload, { headers: getHeaders() });
 
                 if (res.data.status === 'OK') {
@@ -172,16 +185,16 @@ async function createShipment(data) {
                         success: true,
                         trackingNumber: res.data.data.tracker,
                         labelUrl: res.data.data.url,
-                        carrier: "Envioclick"
+                        carrier: shippingOption?.carrier || "Envioclick"
                     };
                 }
             } catch (e) {
-                console.warn("Initial idRate failed, attempting re-quote...", e.response?.data);
+                console.warn(`[CreateShipment] IdRate failed (${e.message}). Re-quoting...`);
             }
         }
 
         // Fallback: Re-Quote to get fresh idRate
-        console.log("Re-quoting to get fresh idRate...");
+        console.log("[CreateShipment] Re-quoting...");
         const quoteResult = await quoteShipping({
             city: customer.city,
             department: customer.department,
@@ -190,8 +203,8 @@ async function createShipment(data) {
         });
 
         if (quoteResult.success && quoteResult.quotes.length > 0) {
-            // Find matching carrier/service if possible, or cheapest
             const bestQuote = quoteResult.quotes.find(q => q.carrier === shippingOption?.carrier) || quoteResult.quotes[0];
+            console.log(`[CreateShipment] New Quote ID: ${bestQuote.idRate} (${bestQuote.carrier})`);
 
             const payload = buildShipmentPayload(bestQuote.idRate);
             const res = await axios.post(`${API_URL}${endpoint}`, payload, { headers: getHeaders() });
@@ -209,9 +222,27 @@ async function createShipment(data) {
         throw new Error("Failed to generate shipment after retry.");
 
     } catch (error) {
-        console.error("Envioclick Create Shipment Error:", JSON.stringify(error.response?.data || {}, null, 2));
-        console.error("Envioclick Error Payload Sent:", JSON.stringify(data, null, 2));
-        return { success: false, error: error.message };
+        // ERROR HANDLING & PARSING
+        const apiError = error.response?.data || {};
+        let readableError = "Envioclick API Failed: Unknown error";
+
+        // Try to extract specific message from Envioclick's nested structure
+        // Structure: { status_messages: [ { error: [ "Unprocessed Entity", "No tiene suficiente crédito..." ] } ] }
+        if (apiError.status_messages && Array.isArray(apiError.status_messages)) {
+            const firstMsg = apiError.status_messages[0];
+            if (firstMsg?.error && Array.isArray(firstMsg.error)) {
+                // Join all error strings, e.g. "Unprocessed Entity. No tiene suficiente crédito..."
+                readableError = firstMsg.error.join(' ');
+            }
+        } else if (apiError.message) {
+            readableError = apiError.message;
+        } else if (error.message) {
+            readableError = error.message;
+        }
+
+        console.error("[CreateShipment] FINAL ERROR:", readableError);
+        // Return success: false with the readable error so the Admin UI displays it
+        return { success: false, error: readableError };
     }
 }
 

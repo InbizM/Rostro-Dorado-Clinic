@@ -88,6 +88,7 @@ export interface Order {
   shippingLabelUrl?: string;
   shippingProvider?: string;
   shippingOption?: ShippingOption;
+  trackingStatus?: string;
 }
 
 export interface ShippingOption {

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { collection, getDocs, doc, updateDoc, query, orderBy, onSnapshot, Timestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Order } from '../../types';
-import { Package, Calendar, User, MapPin, ChevronDown, ChevronUp, Download, MessageCircle, Search, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, Printer, Mail, Phone, ShoppingBag, FileText } from 'lucide-react';
+import { Package, Calendar, User, MapPin, ChevronDown, ChevronUp, Download, MessageCircle, Search, Filter, CheckCircle, Clock, XCircle, AlertCircle, Eye, Printer, Mail, Phone, ShoppingBag, FileText, Truck, RefreshCw } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import OrderChat from '../OrderChat';
 import { parseFirestoreDate } from '../../utils/dateUtils';
@@ -137,6 +137,38 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
     const [generatingLabelId, setGeneratingLabelId] = useState<string | null>(null);
     const [confirmingShipmentId, setConfirmingShipmentId] = useState<string | null>(null);
 
+    const [updatingTrackingId, setUpdatingTrackingId] = useState<string | null>(null);
+
+    const handleTrackingUpdate = async (e: React.MouseEvent, orderId: string) => {
+        e.stopPropagation();
+        setUpdatingTrackingId(orderId);
+
+        const functions = getFunctions();
+        const manualUpdate = httpsCallable(functions, 'manualTrackingUpdate');
+
+        try {
+            const result = await manualUpdate({ orderId });
+            const data = result.data as any;
+
+            if (data.success) {
+                showToast(`Rastreo actualizado: ${data.status}`, 'success');
+                // Optimistic update
+                setOrders(prev => prev.map(o => o.id === orderId ? {
+                    ...o,
+                    trackingStatus: data.status,
+                    status: data.newStatus || o.status
+                } : o));
+            } else {
+                showToast(`Error rastreo: ${data.error}`, 'error');
+            }
+        } catch (error: any) {
+            console.error("Tracking Update Error:", error);
+            showToast(`Error: ${error.message}`, 'error');
+        } finally {
+            setUpdatingTrackingId(null);
+        }
+    };
+
     const handleGenerateLabelClick = (orderId: string) => {
         setConfirmingShipmentId(orderId);
     };
@@ -229,6 +261,39 @@ const AdminOrders: React.FC<AdminOrdersProps> = ({ highlightOrderId }) => {
                                                 }`}>
                                                 {order.paymentStatus === 'approved' ? 'PAGADO' : 'NO PAGADO'}
                                             </span>
+                                        )}
+                                        {/* Tracking Number Badge */}
+                                        {order.trackingNumber && (
+                                            <>
+                                                <span className="flex items-center gap-1 text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 font-mono tracking-wider">
+                                                    <Truck size={12} />
+                                                    {order.trackingNumber}
+                                                </span>
+                                                {/* Carrier Badge */}
+                                                {order.shippingProvider && order.shippingProvider !== 'Envioclick' && (
+                                                    <span className="flex items-center gap-1 text-xs px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 font-bold uppercase tracking-wider">
+                                                        {order.shippingProvider}
+                                                    </span>
+                                                )}
+                                            </>
+                                        )}
+                                        {/* Tracking Status Badge + Refresh */}
+                                        {order.trackingNumber && (
+                                            <div className="flex items-center gap-1">
+                                                {order.trackingStatus && (
+                                                    <span className="flex items-center gap-1 text-xs px-3 py-1 rounded-full bg-white/10 text-white/70 uppercase tracking-wider">
+                                                        {order.trackingStatus}
+                                                    </span>
+                                                )}
+                                                <button
+                                                    onClick={(e) => handleTrackingUpdate(e, order.id)}
+                                                    disabled={updatingTrackingId === order.id}
+                                                    className="p-1 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-colors disabled:opacity-50"
+                                                    title="Actualizar Rastreo"
+                                                >
+                                                    <RefreshCw size={12} className={updatingTrackingId === order.id ? 'animate-spin' : ''} />
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                     <div className="flex items-center gap-2 text-white/50 text-sm">

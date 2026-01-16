@@ -306,6 +306,16 @@ const OrdersPage: React.FC = () => {
                                                 </div>
                                             )}
                                         </div>
+                                        <div className="flex flex-col gap-1 items-end text-sm">
+                                            <p className="text-white/70">
+                                                <span className="text-gold">Guía{order.shippingProvider && order.shippingProvider !== 'Envioclick' ? ` (${order.shippingProvider})` : ''}:</span> {order.trackingNumber}
+                                            </p>
+                                            {order.trackingStatus && (
+                                                <p className="text-white/50 text-xs uppercase tracking-wider">
+                                                    Estado: {order.trackingStatus}
+                                                </p>
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-2 text-white/50 text-sm">
                                             <Calendar size={14} />
                                             {formatDate(order.createdAt)}
@@ -347,8 +357,49 @@ const OrdersPage: React.FC = () => {
                                                     <p><span className="text-white/30 block text-xs mb-1 uppercase tracking-wider">Dirección</span> {order.customer.address}</p>
                                                     <p><span className="text-white/30 block text-xs mb-1 uppercase tracking-wider">Ubicación</span> {order.customer.city}, {order.customer.department}</p>
                                                     {order.trackingNumber && (
-                                                        <p className="mt-2"><span className="text-white/30 block text-xs mb-1 uppercase tracking-wider">Guía {order.shippingProvider ? `(${order.shippingProvider})` : ''}</span>
-                                                            <span className="font-mono bg-white/10 px-2 py-0.5 rounded text-white">{order.trackingNumber}</span></p>
+                                                        <div className="mt-2 bg-white/5 p-3 rounded-lg border border-white/10">
+
+                                                            {/* Only show Carrier if it's not the generic 'Envioclick' */}
+                                                            {order.shippingProvider && order.shippingProvider !== 'Envioclick' && (
+                                                                <p className="flex justify-between items-center mb-1">
+                                                                    <span className="text-white/30 text-xs uppercase tracking-wider">Transportadora</span>
+                                                                    <span className="text-gold font-bold text-xs uppercase">{order.shippingProvider}</span>
+                                                                </p>
+                                                            )}
+
+                                                            <p className="flex justify-between items-center mb-1">
+                                                                <span className="text-white/30 text-xs uppercase tracking-wider">Guía</span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-mono text-white select-all">{order.trackingNumber}</span>
+                                                                    {order.shippingProvider && order.shippingProvider !== 'Envioclick' && (
+                                                                        <a
+                                                                            href={(() => {
+                                                                                const carrier = order.shippingProvider?.toLowerCase() || '';
+                                                                                const tracking = order.trackingNumber || '';
+                                                                                if (carrier.includes('coordinadora')) return `https://www.coordinadora.com/portafolio-de-servicios/herramientas-cliente/rastrear-guias/?guia=${tracking}`;
+                                                                                if (carrier.includes('interrapidisimo')) return `https://www.interrapidisimo.com/sigue-tu-envio/?guia=${tracking}`;
+                                                                                if (carrier.includes('servientrega')) return `https://www.servientrega.com/wps/portal/rastreo-envio?guia=${tracking}`;
+                                                                                if (carrier.includes('tcc')) return `https://tcc.com.co/logistica/rastrear?guia=${tracking}`;
+                                                                                if (carrier.includes('envia')) return `https://envia.co/rastreo?guia=${tracking}`;
+                                                                                return `https://www.google.com/search?q=rastreo+guia+${carrier}+${tracking}`;
+                                                                            })()}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="text-gold hover:text-white transition-colors"
+                                                                            title={`Rastrear en ${order.shippingProvider}`}
+                                                                        >
+                                                                            <ExternalLink size={14} />
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+                                                            </p>
+                                                            {order.trackingStatus && (
+                                                                <p className="flex justify-between items-center mt-2 pt-2 border-t border-white/10">
+                                                                    <span className="text-white/30 text-xs uppercase tracking-wider">Estado</span>
+                                                                    <span className="text-white/70 text-xs uppercase font-bold">{order.trackingStatus}</span>
+                                                                </p>
+                                                            )}
+                                                        </div>
                                                     )}
                                                     {order.customer.notes && (
                                                         <p className="mt-4"><span className="text-white/30 block text-xs mb-1 uppercase tracking-wider">Notas</span> "{order.customer.notes}"</p>
