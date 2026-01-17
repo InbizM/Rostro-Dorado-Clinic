@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Product, Category } from '../../types';
-import { Package, Plus, Edit, Trash2, X, Upload, ChevronRight, Settings, Image as ImageIcon } from 'lucide-react';
+import AiAssistant from './AiAssistant';
+import { Package, Plus, Edit, Trash2, X, Upload, ChevronRight, Settings, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { products as staticProducts } from '../../data/products';
 import FileUpload from './FileUpload';
 import { showToast } from '../ToastContainer';
@@ -25,6 +26,7 @@ const AdminProducts: React.FC = () => {
     const [confirmDelete, setConfirmDelete] = useState<{ show: boolean; productId: string | null }>({ show: false, productId: null });
     const [confirmMigrate, setConfirmMigrate] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isAiOpen, setIsAiOpen] = useState(false);
     const [formData, setFormData] = useState<Partial<Product>>({
         name: '',
         description: '',
@@ -278,7 +280,8 @@ const AdminProducts: React.FC = () => {
             stock: 0,
             basePrice: 0,
             weight: 1,
-            dimensions: { width: 10, height: 10, length: 10 }
+            dimensions: { width: 10, height: 10, length: 10 },
+            brand: 'Rostro Dorado' // Default brand
         });
         setSelectedRoot('');
         setSelectedSub('');
@@ -339,16 +342,25 @@ const AdminProducts: React.FC = () => {
                                     <h3 className="text-2xl text-white font-serif">
                                         {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
                                     </h3>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            resetForm();
-                                            setIsAdding(false);
-                                        }}
-                                        className="text-white/50 hover:text-white transition-colors"
-                                    >
-                                        <X size={24} />
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsAiOpen(true)}
+                                            className="text-xs bg-gold/10 hover:bg-gold/20 text-gold px-3 py-1.5 rounded-lg flex items-center gap-2 transition-colors border border-gold/20"
+                                        >
+                                            <Sparkles size={14} /> Redactar con Alex
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                resetForm();
+                                                setIsAdding(false);
+                                            }}
+                                            className="text-white/50 hover:text-white transition-colors"
+                                        >
+                                            <X size={24} />
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-6">
@@ -364,6 +376,21 @@ const AdminProducts: React.FC = () => {
                                     </div>
 
                                     <style>{noSpinnerStyle}</style>
+
+                                    <style>{noSpinnerStyle}</style>
+
+                                    {/* Brand Field */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs uppercase tracking-widest text-gold font-bold">Marca</label>
+                                        <input
+                                            type="text"
+                                            value={formData.brand || ''}
+                                            onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                                            className="w-full bg-black/20 border border-white/10 p-3 rounded-lg text-white focus:border-gold outline-none focus:bg-white/5 transition-colors"
+                                            placeholder="Ej: Rostro Dorado"
+                                        />
+                                        <p className="text-[10px] text-white/40 h-8">Marca del producto (opcional)</p>
+                                    </div>
 
                                     {/* Categories Section */}
                                     <div className="bg-white/5 border border-white/5 rounded-xl p-6 space-y-4">
@@ -801,7 +828,8 @@ const AdminProducts: React.FC = () => {
                                                         usage: '',
                                                         benefits: [],
                                                         costPrice: 0,
-                                                        stock: 0
+                                                        stock: 0,
+                                                        brand: 'Rostro Dorado'
                                                     });
                                                     setSelectedRoot('');
                                                     setSelectedSub('');
@@ -918,6 +946,123 @@ const AdminProducts: React.FC = () => {
                     fetchCategories(); // Refresh categories when modal closes
                 }}
             />
+
+            {isAiOpen && (
+                <AiAssistant
+                    mode="product"
+                    contextId={`product_${editingProduct?.id || 'new'}`}
+                    onClose={() => setIsAiOpen(false)}
+                    currentContext={{
+                        title: formData.name,
+                        content: formData.longDescription,
+                        excerpt: formData.description
+                    }}
+                    onApplyContent={() => { }}
+                    onApplyImage={() => { }}
+                    onApplyProduct={(aiData) => {
+                        console.log("Applying AI Data to Product:", aiData);
+
+                        // 1. Basic Fields & Shipping
+                        setFormData(prev => ({
+                            ...prev,
+                            name: aiData.name || prev.name,
+                            description: aiData.description || prev.description,
+                            longDescription: aiData.longDescription || prev.longDescription,
+                            ingredients: aiData.ingredients || prev.ingredients,
+                            usage: aiData.usage || prev.usage,
+                            benefits: aiData.benefits || prev.benefits,
+                            // AI returns weight in grams, we store in KG
+                            weight: aiData.weight ? aiData.weight / 1000 : prev.weight,
+                            dimensions: aiData.dimensions || prev.dimensions,
+                            brand: aiData.brand || prev.brand // Apply AI Brand
+                        }));
+
+                        // 2. Category Matching Logic
+                        if (aiData.categoryPath && Array.isArray(aiData.categoryPath)) {
+                            console.group("🧠 AI Category Matching Debug");
+                            console.log("Raw AI Path:", aiData.categoryPath);
+
+                            const [rootName, subName, subSubName] = aiData.categoryPath;
+                            // NEW: Improved normalization ignores accents (tildes) and case
+                            const normalize = (s: string) => s?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() || '';
+
+                            // Debug: Log available root categories
+                            const userRoots = categories.filter(c => c.level === 0).map(c => c.name);
+                            console.log("Available Root Categories in DB:", userRoots);
+
+                            let rId = '', fullPathStr = '';
+
+                            // Find Root
+                            const root = categories.find(c => normalize(c.name) === normalize(rootName) && c.level === 0);
+
+                            if (root) {
+                                console.log("✅ Match Root:", root.name);
+                                rId = root.id;
+                                setSelectedRoot(rId);
+                                fullPathStr = root.name;
+
+                                // Reset children
+                                setSelectedSub('');
+                                setSelectedSubSub('');
+
+                                // Find Sub
+                                if (subName) {
+                                    const sub = categories.find(c => normalize(c.name) === normalize(subName) && c.parentId === rId);
+                                    if (sub) {
+                                        console.log("✅ Match Sub:", sub.name);
+                                        setSelectedSub(sub.id);
+                                        fullPathStr += ` > ${sub.name}`;
+
+                                        // Find SubSub
+                                        if (subSubName) {
+                                            const subsub = categories.find(c => normalize(c.name) === normalize(subSubName) && c.parentId === sub.id);
+                                            if (subsub) {
+                                                console.log("✅ Match SubSub:", subsub.name);
+                                                setSelectedSubSub(subsub.id);
+                                                fullPathStr += ` > ${subsub.name}`;
+                                            } else {
+                                                console.warn("❌ Failed to match SubSub:", subSubName);
+                                                console.log("Available SubSubs:", categories.filter(c => c.parentId === sub.id).map(c => c.name));
+                                            }
+                                        }
+                                    } else {
+                                        console.warn("❌ Failed to match Sub:", subName);
+                                        console.log("Available Subs for Root:", categories.filter(c => c.parentId === rId).map(c => c.name));
+                                    }
+                                }
+                            } else {
+                                console.warn("❌ Failed to match Root:", rootName);
+                            }
+
+                            if (fullPathStr) {
+                                setFormData(prev => ({ ...prev, category: fullPathStr }));
+                            }
+                            console.groupEnd();
+                        }
+
+                        // 3. Auto-adjust Weight Unit for UX
+                        if (aiData.weight && aiData.weight < 1000) {
+                            setWeightUnit('g');
+                        } else {
+                            setWeightUnit('kg');
+                        }
+                    }}
+                    siteKnowledge={{
+                        brand: "Rostro Dorado Clinic: Lujo, ciencia y resultados visibles.",
+                        products: `
+                            ESTRUCTURA DE CATEGORÍAS VÁLIDA (Usa estas para clasificar):
+                            ${categories.filter(c => c.level === 0).map(root => {
+                            const subs = categories.filter(s => s.parentId === root.id);
+                            return `- ${root.name}\n${subs.map(s => {
+                                const subsubs = categories.filter(ss => ss.parentId === s.id);
+                                return `  * ${s.name} ${subsubs.length > 0 ? `[${subsubs.map(ss => ss.name).join(', ')}]` : ''}`;
+                            }).join('\n')}`;
+                        }).join('\n')}
+                        `,
+                        articles: ""
+                    }}
+                />
+            )}
         </div>
     );
 };

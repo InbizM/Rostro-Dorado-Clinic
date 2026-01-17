@@ -21,6 +21,8 @@ import LoginVerifyPage from './components/Auth/LoginVerifyPage'; // Imported
 import TerminosCondiciones from './components/Legal/TerminosCondiciones';
 import PoliticaPrivacidad from './components/Legal/PoliticaPrivacidad';
 import PoliticaEnvios from './components/Legal/PoliticaEnvios';
+import BlogPage from './components/Blog/BlogPage';
+import BlogPost from './components/Blog/BlogPost';
 
 const App: React.FC = () => {
   return (
@@ -51,6 +53,10 @@ const App: React.FC = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/verify-login" element={<LoginVerifyPage />} />
             <Route path="/register" element={<RegisterPage />} />
+
+            {/* Blog Pages */}
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/:slug" element={<BlogPost />} />
 
             {/* Legal Pages */}
             <Route path="/terminos-y-condiciones" element={<TerminosCondiciones />} />

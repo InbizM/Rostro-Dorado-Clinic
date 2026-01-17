@@ -94,7 +94,8 @@ const Navbar: React.FC = () => {
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
   // Determine if navbar should have solid background
-  const isSolid = isScrolled || isProductsPage || isCheckoutPage || isAuthPage || isMobileMenuOpen;
+  const isBlogSection = location.pathname.startsWith('/blog');
+  const isSolid = isScrolled || isProductsPage || isCheckoutPage || isAuthPage || isMobileMenuOpen || isBlogSection;
 
   // Text color: charcoal when solid, white when transparent (assuming dark background)
   // Verify if there are any light pages that are transparent? 

@@ -67,6 +67,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Blog Posts: Public read of published posts (filtered in query, enforced here if possible or just public read), Admin write
+    match /posts/{postId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // OTP Codes: Backend Only (Cloud Functions) - No Client Access
     match /otp_codes/{email} {
       allow read, write: if false;

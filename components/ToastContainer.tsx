@@ -97,7 +97,7 @@ const ToastContainer: React.FC = () => {
 
     return (
         <div
-            className="fixed top-4 right-4 flex flex-col gap-3 pointer-events-none"
+            className="fixed bottom-4 right-4 flex flex-col-reverse gap-3 pointer-events-none"
             style={{ zIndex: 2147483646 }} // Above everything, below cursor
         >
             <AnimatePresence>

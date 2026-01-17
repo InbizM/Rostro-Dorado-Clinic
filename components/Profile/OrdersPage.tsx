@@ -7,7 +7,7 @@ import Navbar from '../Layout/Navbar';
 import Footer from '../Layout/Footer';
 
 import { Order } from '../../types';
-import { Package, Calendar, MapPin, ChevronDown, ChevronUp, MessageCircle, User, X, Trash2, FileText } from 'lucide-react';
+import { Package, Calendar, MapPin, ChevronDown, ChevronUp, MessageCircle, User, X, Trash2, FileText, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OrderChat from '../OrderChat';
 import InvoiceModal from './InvoiceModal';

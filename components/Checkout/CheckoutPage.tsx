@@ -12,7 +12,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { COLOMBIA_DATA } from '../../data/colombia';
 import CustomSelect from '../CustomSelect';
-import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
 import { UserProfile, Address } from '../../types';
 import {
     loadWompiScript,
@@ -222,6 +222,31 @@ const CheckoutPage: React.FC = () => {
     // State for preventing duplicate orders in same session
     const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
 
+    // --- ABANDONED CART LOGIC ---
+    const saveAbandonedCart = async (email: string) => {
+        if (!email) return;
+        try {
+            // Check if we already have an ID for this session (maybe stored in local for this user)
+            // For now, simpler: we create a doc with ID = email (if user only has 1 active cart) 
+            // OR we just add a new doc. Let's use Email as ID for simplicity so we update the same doc for same user.
+            // A better approach is random ID saved in state, but Email is unique enough for "latest cart".
+
+            await setDoc(doc(db, 'abandoned_carts', email), {
+                email: email,
+                items: cart,
+                total: cartTotal,
+                updatedAt: serverTimestamp(),
+                status: 'pending', // pending -> reminded -> recovered/purchased
+                checkoutUrl: window.location.href,
+                customerName: `${formData.firstName} ${formData.lastName}`.trim()
+            });
+            console.log("🛒 Carritos abandonado rastreado para:", email);
+        } catch (e) {
+            console.error("Error saving abandoned cart:", e);
+        }
+    };
+    // ----------------------------
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -355,6 +380,17 @@ const CheckoutPage: React.FC = () => {
                         clearCart();
                         localStorage.removeItem('checkoutFormData');
                         setCurrentOrderId(null);
+
+                        // Mark abandoned cart as purchased (resolved)
+                        if (formData.email) {
+                            try {
+                                await updateDoc(doc(db, 'abandoned_carts', formData.email), {
+                                    status: 'purchased',
+                                    orderId: orderId
+                                });
+                            } catch (e) { console.log("Minor error updating abandoned cart status", e); }
+                        }
+
                         setSuccess(true);
 
                     } catch (error) {
@@ -496,6 +532,12 @@ const CheckoutPage: React.FC = () => {
                                 placeholder="Correo electrónico"
                                 value={formData.email}
                                 onChange={handleChange}
+                                onBlur={() => {
+                                    if (formData.email && formData.email.includes('@')) {
+                                        // Trigger tracking when email is valid and field is left
+                                        saveAbandonedCart(formData.email);
+                                    }
+                                }}
                                 required
                                 className="w-full border border-gray-300 rounded p-3 text-sm focus:border-black focus:ring-1 focus:ring-black outline-none transition-colors mb-2"
                             />

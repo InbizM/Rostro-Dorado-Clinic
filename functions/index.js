@@ -1016,3 +1016,81 @@ exports.retryShipmentGeneration = functions.https.onCall(async (data, context) =
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
+
+/**
+ * 6. checkAbandonedCarts
+ * Runs periodically to check for carts left 'pending' for > 1 hour.
+ * Sends a reminder email via Brevo.
+ */
+exports.checkAbandonedCarts = functions.https.onRequest(async (req, res) => {
+  try {
+    const now = admin.firestore.Timestamp.now();
+    const cutoffTime = new Date(now.toMillis() - 60 * 60 * 1000); // 1 hour ago
+    const deadlineTime = new Date(now.toMillis() - 24 * 60 * 60 * 1000); // 24 hours ago
+
+    console.log("Running Abandoned Cart Check...");
+
+    const snapshot = await admin.firestore().collection('abandoned_carts')
+      .where('status', '==', 'pending')
+      .where('updatedAt', '<', admin.firestore.Timestamp.fromDate(cutoffTime))
+      .get();
+
+    console.log(`Found ${snapshot.size} potential abandoned carts.`);
+
+    const batch = admin.firestore().batch();
+    let emailCount = 0;
+
+    // Brevo Config
+    const brevoKey = functions.config().brevo ? functions.config().brevo.key : null;
+    if (!brevoKey) {
+      console.error("Brevo API Key missing");
+      return res.status(500).send("Config Error");
+    }
+
+    const defaultClient = SibApiV3Sdk.ApiClient.instance;
+    const apiKey = defaultClient.authentications['api-key'];
+    apiKey.apiKey = brevoKey;
+    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+
+    for (const doc of snapshot.docs) {
+      const cart = doc.data();
+
+      if (cart.updatedAt && cart.updatedAt.toDate() < deadlineTime) continue;
+
+      const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+      sendSmtpEmail.subject = "¡No pierdas tus productos! - Rostro Dorado Clinic";
+      sendSmtpEmail.sender = { "name": "Rostro Dorado Clinic", "email": "no-reply@rostrodorado.com" };
+      sendSmtpEmail.to = [{ "email": cart.email, "name": cart.customerName || "Cliente" }];
+
+      sendSmtpEmail.htmlContent = `
+  <!DOCTYPE html>
+  <html>
+  <body style="background-color:#f4f4f4; font-family: Helvetica, Arial, sans-serif;">
+  <div style="max-width:600px; margin:40px auto; background:#fff; padding:40px; text-align:center; border-radius:4px;">
+    <h2 style="color:#111;">Tus productos te esperan</h2>
+    <p style="color:#666;">Hola ${cart.customerName || 'ahí'}, notamos que dejaste productos en tu carrito.</p>
+    <div style="background:#fafafa; padding:20px; margin:20px 0; text-align:left;">
+        ${cart.items ? cart.items.map(item => `<div>• ${item.name} (${item.quantity})</div>`).join('') : ''}
+    </div>
+    <a href="${cart.checkoutUrl || 'https://rostrodorado.com/checkout'}" style="display:inline-block; background:#000; color:#fff; padding:15px; text-decoration:none; font-weight:bold;">FINALIZAR COMPRA</a>
+  </div>
+  </body>
+  </html>`;
+
+      try {
+        await apiInstance.sendTransacEmail(sendSmtpEmail);
+        batch.update(doc.ref, { status: 'reminded', remindedAt: admin.firestore.Timestamp.now() });
+        emailCount++;
+      } catch (err) {
+        console.error(`Failed to send to ${cart.email}`, err);
+      }
+    }
+
+    if (emailCount > 0) await batch.commit();
+
+    res.send({ success: true, processed: emailCount });
+  } catch (error) {
+    console.error("Error in checkAbandonedCarts:", error);
+    res.status(500).send(error.message);
+  }
+});

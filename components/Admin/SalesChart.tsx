@@ -17,7 +17,7 @@ const SalesChart: React.FC<SalesChartProps> = ({ data }) => {
     return (
         <div className="bg-white/5 border border-white/10 p-6 rounded-2xl h-[400px]">
             <h3 className="text-xl font-serif text-white mb-6">Ventas de los Últimos 30 Días</h3>
-            <div className="h-[300px] w-full">
+            <div style={{ width: '100%', height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
                         data={data}

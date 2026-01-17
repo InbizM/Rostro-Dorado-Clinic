@@ -21,6 +21,7 @@ import {
     FolderTree,
     MessageCircle,
     Tag,
+    FileText,
 } from 'lucide-react';
 
 import { parseFirestoreDate } from '../../utils/dateUtils';
@@ -30,15 +31,23 @@ import AdminProducts from './AdminProducts';
 import AdminUsers from './AdminUsers';
 import AdminPayments from './AdminPayments';
 import AdminCoupons from './AdminCoupons';
+import AdminBlog from './AdminBlog';
 
 import SalesChart from './SalesChart';
 import AdminChats from './AdminChats';
 
+
+
 const AdminDashboard: React.FC = () => {
     const navigate = useNavigate();
     const { currentUser } = useAuth();
-    const [activeTab, setActiveTab] = useState('overview');
+    // Persist active tab in localStorage
+    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('adminActiveTab') || 'overview');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    useEffect(() => {
+        localStorage.setItem('adminActiveTab', activeTab);
+    }, [activeTab]);
     const [stats, setStats] = useState({
         totalSales: 0,
         totalOrders: 0,
@@ -216,6 +225,7 @@ const AdminDashboard: React.FC = () => {
         { id: 'products', label: 'Productos', icon: Package },
         { id: 'users', label: 'Usuarios', icon: Users },
         { id: 'coupons', label: 'Cupones', icon: Tag },
+        { id: 'blog', label: 'Blog', icon: FileText },
     ];
 
     const renderActivityItem = (item: any) => {
@@ -364,6 +374,8 @@ const AdminDashboard: React.FC = () => {
                 return <AdminUsers />;
             case 'coupons':
                 return <AdminCoupons />;
+            case 'blog':
+                return <AdminBlog />;
 
             default:
                 return null;

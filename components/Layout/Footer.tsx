@@ -75,6 +75,9 @@ const Footer: React.FC = () => {
                         <a href="/politica-de-envios" className="p-2 hover:text-gold transition-colors text-xs md:text-sm">
                             Política de Envíos y Devoluciones
                         </a>
+                        <a href="/blog" className="p-2 hover:text-gold transition-colors text-xs md:text-sm font-bold">
+                            Blog & Noticias
+                        </a>
                     </div>
 
                     <p>Diseño Web: Premium Aesthetics</p>

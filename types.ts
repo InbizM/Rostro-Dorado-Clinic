@@ -45,6 +45,7 @@ export interface Product {
   basePrice?: number; // Price before Wompi fee
   stock?: number;
   media?: { type: 'image' | 'video'; url: string }[];
+  brand?: string;
   weight?: number; // In Kg
   dimensions?: {
     width: number; // cm
@@ -173,3 +174,17 @@ export interface Coupon {
   minPurchase?: number;
 }
 
+
+export interface BlogPost {
+  id?: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string; // HTML or Markdown
+  coverImage: string;
+  author: string;
+  published: boolean;
+  createdAt: any; // Timestamp
+  updatedAt?: any; // Timestamp
+  views?: number;
+}
